@@ -54,11 +54,11 @@ namespace MyStl{
 
                 begin = alloc.allocate(last - first);
 
-                size_type cap = (last - first) < 16 ? 16 : (last - first);
+                size_type capa = (last - first) < 16 ? 16 : (last - first);
 
                 end = uninitialized_copy(first, last, begin);
 
-                cap = begin + cap;
+                cap = begin + capa;
             }
 
             Vector(const Vector& other): Vector(other.begin, other.end){}
