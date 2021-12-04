@@ -14,20 +14,20 @@ namespace MyStl{
             /* member fields*/
             std::allocator<T> alloc;
 
-            T* begin;
+            value_type* begin;
 
-            T* end;
+            value_type* end;
 
-            T* capacity;
+            value_type* cap;
 
         public:
-            /* ctors */
+            /* ctors and dtors */
             Vector() noexcept {
                 try{
                     end = begin = alloc.allocate(16);
-                    capacity = begin + 16;
+                    cap = begin + 16;
                 }catch(...){
-                    begin = end = capacity = nullptr;
+                    begin = end = cap = nullptr;
                 }
             }
 
@@ -37,9 +37,9 @@ namespace MyStl{
                 try{
                     begin = alloc.allocate(cap);
                     end = begin + count;
-                    capacity = begin + cap;
+                    cap = begin + cap;
                 }catch(...){
-                    begin = end = capacity = nullptr;
+                    begin = end = cap = nullptr;
                     throw;
                 }
 
@@ -58,16 +58,52 @@ namespace MyStl{
 
                 end = uninitialized_copy(first, last, begin);
 
-                capacity = begin + cap;
+                cap = begin + cap;
             }
 
-            Vector(const Vector& other);
+            Vector(const Vector& other): Vector(other.begin, other.end){}
 
-            Vector(Vector&& other);
+            Vector(Vector&& other): begin(other.begin), end(other.end), cap(other.cap){
+                other.begin = other.end = other.cap = nullptr;
+            }
 
-            Vector(std::initializer_list<T> init);
+            Vector(std::initializer_list<T> init): Vector(init.begin(), init.end()){}
 
-            ~Vector();
+            ~Vector(){free();}
+        
+            Vector& operator=(const Vector& other){
+                if (&other != this){
+                    auto new_beg = alloc.allocate(other.size());
+                    auto new_end = uninitialized_copy(other.begin, other.end, new_beg);
+                    free();
+                    begin = new_beg;
+                    end = cap = new_end;
+                }
+
+                return *this;
+            }
+
+            Vector& operator=(Vector&& other){
+                if (&other != this){
+                    free();
+                    this->begin = other.begin;
+                    this->end = other.end;
+                    this->cap = other.cap;
+                    other.begin = other.end = other.cap = nullptr;
+                }
+                
+                return *this;
+            }
+
+            Vector& operator=(std::initializer_list<T> ilist){
+                this->operator=(Vector(ilist.begin(), ilist.end()));
+            }
+
+        public:
+            /* capacity */
+            size_type capacity(){return cap - begin;}
+
+            size_type size(){return end - begin; }
 
         private:
             /* helpers */
@@ -97,7 +133,16 @@ namespace MyStl{
                     }
                 }
 
-                return out;
+                return out;     //returns the iterator after last copied element
+            }
+
+            void free(){
+                for (value_type* i = begin; i != end; ++i){
+                    alloc.destroy(i);
+                }
+                alloc.deallocate(begin, cap - begin);
+
+                begin = end = cap = nullptr;
             }
     };
 }
