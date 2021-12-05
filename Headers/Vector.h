@@ -2,7 +2,9 @@
 #define MYSTL_VECTOR_H
 
 #include <memory>
+#include <utility>
 #include <assert.h>
+#include <type_traits>
 
 namespace MyStl{
     template <typename T>
@@ -32,12 +34,12 @@ namespace MyStl{
             }
 
             Vector(size_type count, const T& value){
-                size_type cap = count < 16 ? 16 : count;
+                size_type capa = count < 16 ? 16 : count;
                 
                 try{
-                    begin = alloc.allocate(cap);
+                    begin = alloc.allocate(capa);
                     end = begin + count;
-                    cap = begin + cap;
+                    cap = begin + capa;
                 }catch(...){
                     begin = end = cap = nullptr;
                     throw;
@@ -96,7 +98,33 @@ namespace MyStl{
             }
 
             Vector& operator=(std::initializer_list<T> ilist){
-                this->operator=(Vector(ilist.begin(), ilist.end()));
+                Vector<T> temp(ilist.begin, ilist.end);
+                this->swap(temp);
+                return *this;
+            }
+
+            void assign(size_type count, const T& value){
+                Vector<T> temp(count, value);
+                this->swap(temp);
+            }
+
+            template<class InputIt> void assign(InputIt first, InputIt last){
+                assert(first < last);
+
+                if (capacity() < last - first || last - first < size()){
+                    Vector<T> temp(first, last);
+                    this->swap(temp);
+                }else{
+                    auto new_end = begin;
+                    for (auto i = first; i != last ; ++i, ++new_end){
+                        *new_end = *i;
+                    }
+                    end = new_end;
+                }
+            }
+
+            void assign(std::initializer_list<T> ilist){
+
             }
 
         public:
@@ -143,6 +171,14 @@ namespace MyStl{
                 alloc.deallocate(begin, cap - begin);
 
                 begin = end = cap = nullptr;
+            }
+
+            void swap(Vector<T>& other) noexcept {
+                if (&other != this){
+                    std::swap(this->begin, other.begin);
+                    std::swap(this->end, other.end);
+                    std::swap(this->cap, other.cap);
+                }
             }
     };
 }
