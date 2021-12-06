@@ -27,9 +27,9 @@ namespace MyStl{
             /* member fields*/
             std::allocator<T> alloc;
 
-            iterator begin;
+            iterator _begin;
 
-            iterator end;
+            iterator _end;
 
             iterator cap;
 
@@ -37,10 +37,10 @@ namespace MyStl{
             /* ctors and dtors */
             Vector() noexcept {
                 try{
-                    end = begin = alloc.allocate(16);
-                    cap = begin + 16;
+                    _end = _begin = alloc.allocate(16);
+                    cap = _begin + 16;
                 }catch(...){
-                    begin = end = cap = nullptr;
+                    _begin = _end = cap = nullptr;
                 }
             }
 
@@ -48,11 +48,11 @@ namespace MyStl{
                 size_type capa = count < 16 ? 16 : count;
                 
                 try{
-                    begin = alloc.allocate(capa);
-                    end = begin + count;
-                    cap = begin + capa;
+                    _begin = alloc.allocate(capa);
+                    _end = _begin + count;
+                    cap = _begin + capa;
                 }catch(...){
-                    begin = end = cap = nullptr;
+                    _begin = _end = cap = nullptr;
                     throw;
                 }
 
@@ -65,19 +65,19 @@ namespace MyStl{
             Vector(InputIt first, InputIt last){
                 assert(first < last);
 
-                begin = alloc.allocate(last - first);
+                _begin = alloc.allocate(last - first);
 
                 size_type capa = (last - first) < 16 ? 16 : (last - first);
 
-                end = uninitialized_copy(first, last, begin);
+                _end = uninitialized_copy(first, last, _begin);
 
-                cap = begin + capa;
+                cap = _begin + capa;
             }
 
-            Vector(const Vector& other): Vector(other.begin, other.end){}
+            Vector(const Vector& other): Vector(other._begin, other._end){}
 
-            Vector(Vector&& other): begin(other.begin), end(other.end), cap(other.cap){
-                other.begin = other.end = other.cap = nullptr;
+            Vector(Vector&& other): _begin(other._begin), _end(other._end), cap(other.cap){
+                other._begin = other._end = other.cap = nullptr;
             }
 
             Vector(std::initializer_list<T> init): Vector(init.begin(), init.end()){}
@@ -87,10 +87,10 @@ namespace MyStl{
             Vector& operator=(const Vector& other){
                 if (&other != this){
                     auto new_beg = alloc.allocate(other.size());
-                    auto new_end = uninitialized_copy(other.begin, other.end, new_beg);
+                    auto new_end = uninitialized_copy(other._begin, other._end, new_beg);
                     free();
-                    begin = new_beg;
-                    end = cap = new_end;
+                    _begin = new_beg;
+                    _end = cap = new_end;
                 }
 
                 return *this;
@@ -99,17 +99,17 @@ namespace MyStl{
             Vector& operator=(Vector&& other){
                 if (&other != this){
                     free();
-                    this->begin = other.begin;
-                    this->end = other.end;
+                    this->_begin = other._begin;
+                    this->_end = other._end;
                     this->cap = other.cap;
-                    other.begin = other.end = other.cap = nullptr;
+                    other._begin = other._end = other.cap = nullptr;
                 }
                 
                 return *this;
             }
 
             Vector& operator=(std::initializer_list<T> ilist){
-                Vector<T> temp(ilist.begin, ilist.end);
+                Vector<T> temp(ilist._begin, ilist._end);
                 this->swap(temp);
                 return *this;
             }
@@ -126,11 +126,11 @@ namespace MyStl{
                     Vector<T> temp(first, last);
                     this->swap(temp);
                 }else{
-                    auto new_end = begin;
+                    auto new_end = _begin;
                     for (auto i = first; i != last ; ++i, ++new_end){
                         *new_end = *i;
                     }
-                    end = new_end;
+                    _end = new_end;
                 }
             }
 
@@ -142,32 +142,32 @@ namespace MyStl{
             /* member access */
             reference front(){
                 assert(!empty());
-                return *begin;
+                return *_begin;
             }
 
             const_reference front() const {
                 assert(!empty());
-                return *begin;
+                return *_begin;
             }
 
             reference back(){
                 assert(!empty());
-                return *(end - 1);
+                return *(_end - 1);
             }
 
             const_reference back() const {
                 assert(!empty());
-                return *(end - 1);
+                return *(_end - 1);
             }
 
             reference operator[](size_type pos){
                 assert(pos < size());
-                return *(begin + pos);
+                return *(_begin + pos);
             }
 
             const_reference operator[](size_type pos) const {
                 assert(pos < size());
-                return *(begin + pos);
+                return *(_begin + pos);
             }
 
             reference at(size_type pos){
@@ -182,55 +182,55 @@ namespace MyStl{
                 return this->operator[](pos);
             }
 
-            T* data() noexcept {return begin;}
-            const T* data() const noexcept {return begin;}
+            T* data() noexcept {return _begin;}
+            const T* data() const noexcept {return _begin;}
 
         public:
             /* iterators */
             iterator begin() noexcept{
-                return begin;
+                return _begin;
             }
 
             const_iterator begin() const noexcept {
-                return begin;
+                return _begin;
             }
 
             const_iterator cbegin() const noexcept {
-                return begin;
+                return _begin;
             }
 
             iterator end() noexcept{
-                return end;
+                return _end;
             }
 
             const_iterator end() const noexcept {
-                return end;
+                return _end;
             }
 
             const_iterator cend() const noexcept {
-                return end;
+                return _end;
             }
 
             //TODO: reverse_iterator functions
 
         public:
             /* capacity */
-            size_type capacity() const noexcept {return cap - begin;}
+            size_type capacity() const noexcept {return cap - _begin;}
 
-            size_type size() const noexcept {return end - begin; }
+            size_type size() const noexcept {return _end - _begin; }
 
-            bool empty() const noexcept {return begin == end;}
+            bool empty() const noexcept {return _begin == _end;}
 
         private:
             /* helpers */
             void initialize_all(const T& val){
-                T* i = begin;
+                T* i = _begin;
                 try{
-                    for (; i != end; ++i){
+                    for (; i != _end; ++i){
                         alloc.construct(i, val);
                     }
                 }catch(...){
-                    for (T* temp = begin; temp != i; ++temp){
+                    for (T* temp = _begin; temp != i; ++temp){
                         alloc.destroy(temp);
                     }
                 }
@@ -253,18 +253,18 @@ namespace MyStl{
             }
 
             void free(){
-                for (value_type* i = begin; i != end; ++i){
+                for (value_type* i = _begin; i != _end; ++i){
                     alloc.destroy(i);
                 }
-                alloc.deallocate(begin, cap - begin);
+                alloc.deallocate(_begin, cap - _begin);
 
-                begin = end = cap = nullptr;
+                _begin = _end = cap = nullptr;
             }
 
             void swap(Vector<T>& other) noexcept {
                 if (&other != this){
-                    std::swap(this->begin, other.begin);
-                    std::swap(this->end, other.end);
+                    std::swap(this->_begin, other._begin);
+                    std::swap(this->_end, other._end);
                     std::swap(this->cap, other.cap);
                 }
             }
