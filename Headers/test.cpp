@@ -10,8 +10,14 @@ int main(){
     std::cout << std::endl;
 
     std::cout << v3.size() << " " << v3.capacity() << std::endl;
-    
+
     std::cout << v.front() << " " << v.back() << " " << v[9] << std::endl;
+
+    for (auto& i : v){
+        std::cout << i << " ";
+    }
+
+    std::cout << std::endl;
 
     v = v3;
     try{
