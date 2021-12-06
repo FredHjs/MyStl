@@ -119,6 +119,7 @@ namespace MyStl{
                 this->swap(temp);
             }
 
+            //TODO: differenciate between this and the above overload
             template<class InputIt> void assign(InputIt first, InputIt last){
                 assert(first < last);
 
@@ -221,6 +222,41 @@ namespace MyStl{
 
             bool empty() const noexcept {return _begin == _end;}
 
+            size_type max_size() const noexcept {return static_cast<size_type>(-1) / sizeof(value_type);}
+
+            void reserve(size_type new_cap){
+                if (new_cap <= capacity()) return;
+
+                if (new_cap > max_size()){
+                    throw std::length_error("cannot reserve capacity bigger than max_size");
+                }
+
+                T* new_begin = alloc.allocate(new_cap);
+                T* new_end = uninitialized_move(_begin, _end, new_begin);
+
+                alloc.deallocate(_begin, capacity());
+
+                _begin = new_begin;
+                _end = cap = new_end;
+            }
+
+            void shrink_to_fit(){
+                auto new_beg = alloc.allocate(size());
+                
+                T* new_end;
+                try{
+                    new_end = uninitialized_move(_begin, _end, new_beg);
+                }catch(...){
+                    alloc.deallocate(new_beg, size());
+                    throw;
+                }
+
+                alloc.deallocate(_begin, capacity());
+
+                _begin = new_beg;
+                _end = cap = new_end;
+            }
+
         private:
             /* helpers */
             void initialize_all(const T& val){
@@ -242,6 +278,22 @@ namespace MyStl{
                 try{
                     for (; beg != end; ++beg, ++out){
                         alloc.construct(&*out, *beg);
+                    }
+                }catch(...){
+                    for (; out != result; --out){
+                        alloc.destroy(&*out);
+                    }
+                }
+
+                return out;     //returns the iterator after last copied element
+            }
+
+            template <typename InputIt, typename FowardIt>
+            FowardIt uninitialized_move(InputIt beg, InputIt end, FowardIt result){
+                FowardIt out = result;
+                try{
+                    for (; beg != end; ++beg, ++out){
+                        alloc.construct(&*out, std::move(*beg));
                     }
                 }catch(...){
                     for (; out != result; --out){
