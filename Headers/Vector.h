@@ -4,23 +4,27 @@
 #include <memory>
 #include <utility>
 #include <assert.h>
-#include <type_traits>
+#include <stdexcept>
+//#include <type_traits>
 
 namespace MyStl{
     template <typename T>
     class Vector{
         typedef typename std::allocator<T>::value_type value_type;
         typedef typename std::allocator<T>::size_type size_type;
+        using reference = T&;
+        using const_reference = const T&;
+        using iterator = T*;
 
         private:
             /* member fields*/
             std::allocator<T> alloc;
 
-            value_type* begin;
+            iterator begin;
 
-            value_type* end;
+            iterator end;
 
-            value_type* cap;
+            iterator cap;
 
         public:
             /* ctors and dtors */
@@ -124,14 +128,63 @@ namespace MyStl{
             }
 
             void assign(std::initializer_list<T> ilist){
-
+                this->assign(ilist.begin(), ilist.end());
             }
 
         public:
-            /* capacity */
-            size_type capacity(){return cap - begin;}
+            /* member access */
+            reference front(){
+                assert(!empty());
+                return *begin;
+            }
 
-            size_type size(){return end - begin; }
+            const_reference front() const {
+                assert(!empty());
+                return *begin;
+            }
+
+            reference back(){
+                assert(!empty());
+                return *(end - 1);
+            }
+
+            const_reference back() const {
+                assert(!empty());
+                return *(end - 1);
+            }
+
+            reference operator[](size_type pos){
+                assert(pos < size());
+                return *(begin + pos);
+            }
+
+            const_reference operator[](size_type pos) const {
+                assert(pos < size());
+                return *(begin + pos);
+            }
+
+            reference at(size_type pos){
+                if (pos >= size()) throw std::out_of_range("element index out of range");
+
+                return this->operator[](pos);
+            }
+
+            const_reference at(size_type pos) const {
+                if (pos >= size()) throw std::out_of_range("element index out of range");
+
+                return this->operator[](pos);
+            }
+
+            T* data() noexcept {return begin;}
+            const T* data() const noexcept {return begin;}
+
+        public:
+            /* capacity */
+            size_type capacity() const noexcept {return cap - begin;}
+
+            size_type size() const noexcept {return end - begin; }
+
+            bool empty() const noexcept {return begin == end;}
 
         private:
             /* helpers */
