@@ -5,16 +5,23 @@
 #include <utility>
 #include <assert.h>
 #include <stdexcept>
+#include <type_traits>
 //#include <type_traits>
 
 namespace MyStl{
     template <typename T>
     class Vector{
-        typedef typename std::allocator<T>::value_type value_type;
-        typedef typename std::allocator<T>::size_type size_type;
+        using value_type = typename std::allocator<T>::value_type;
+        using size_type = typename std::allocator<T>::size_type;
+        using difference_type = typename std::allocator<T>::difference_type;
+        using pointer = typename std::allocator_traits<std::allocator<T>>::pointer;
+        using const_pointer = typename std::allocator_traits<std::allocator<T>>::const_pointer;
         using reference = T&;
         using const_reference = const T&;
         using iterator = T*;
+        using const_iterator = const T*;
+
+        //TODO: reverse_iterator
 
         private:
             /* member fields*/
@@ -177,6 +184,34 @@ namespace MyStl{
 
             T* data() noexcept {return begin;}
             const T* data() const noexcept {return begin;}
+
+        public:
+            /* iterators */
+            iterator begin() noexcept{
+                return begin;
+            }
+
+            const_iterator begin() const noexcept {
+                return begin;
+            }
+
+            const_iterator cbegin() const noexcept {
+                return begin;
+            }
+
+            iterator end() noexcept{
+                return end;
+            }
+
+            const_iterator end() const noexcept {
+                return end;
+            }
+
+            const_iterator cend() const noexcept {
+                return end;
+            }
+
+            //TODO: reverse_iterator functions
 
         public:
             /* capacity */
