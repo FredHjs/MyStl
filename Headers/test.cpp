@@ -26,5 +26,9 @@ int main(){
     }catch(std::out_of_range const& ex){
         std::cout << ex.what() << std::endl;
     }
-    return 0;
+    
+    v3.assign({100, 100, 100, 100, 100});
+    std::cout << v3.size() << " " << v3.capacity() << std::endl;
+    v3.shrink_to_fit();
+    std::cout << v3.size() << " " << v3.capacity() << std::endl;
 }
