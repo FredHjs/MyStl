@@ -8,8 +8,17 @@ int main(){
     MyStl::Vector<int> v3;
     std::cout << v.capacity() << " " << v.size();
     std::cout << std::endl;
-    std::cout << v2.capacity() << " " << v2.size();
-    std::cout << std::endl;
-    std::cout << v3.capacity() << " " << v3.size();
+
+    std::cout << v3.size() << " " << v3.capacity() << std::endl;
+    
+    std::cout << v.front() << " " << v.back() << " " << v[9] << std::endl;
+
+    v = v3;
+    try{
+        v.at(0) = 2;
+        std::cout << v.at(0) << std::endl;
+    }catch(std::out_of_range const& ex){
+        std::cout << ex.what() << std::endl;
+    }
     return 0;
 }
