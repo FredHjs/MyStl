@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <stdexcept>
 #include <type_traits>
+#include <cstring>
 //#include <type_traits>
 
 namespace MyStl{
@@ -257,6 +258,40 @@ namespace MyStl{
                 _end = cap = new_end;
             }
 
+        public:
+            /* modifiers */
+            void clear() noexcept {
+            }
+
+            iterator erase(const_iterator pos){
+                assert(pos >= _begin && pos < _end);
+                iterator erase_pos = const_cast<iterator>(pos);
+                batch_move(erase_pos + 1, _end, erase_pos);
+                alloc.destroy(--_end);
+                return const_cast<iterator>(pos);
+            }
+
+            iterator erase(const_iterator first, const_iterator last){
+                assert((first >= _begin && first < _end) 
+                      && (last >= _begin && last < _end) 
+                      && (first <= last));
+
+                //size_type erased_num = last - first;
+
+                auto first_to_move = const_cast<iterator>(last);
+                auto move_to = const_cast<iterator>(first);
+
+                iterator new_end = batch_move(first_to_move, _end, move_to);
+
+                for (iterator i = new_end; i != _end; ++i){
+                    alloc.destroy(i);
+                }
+
+                _end = new_end;
+
+                return first_to_move;
+            }
+
         private:
             /* helpers */
             void initialize_all(const T& val){
@@ -272,9 +307,9 @@ namespace MyStl{
                 }
             }
 
-            template <typename InputIt, typename FowardIt>
-            FowardIt uninitialized_copy(InputIt beg, InputIt end, FowardIt result){
-                FowardIt out = result;
+            template <typename InputIter, typename FowardIter>
+            FowardIter uninitialized_copy(InputIter beg, InputIter end, FowardIter result){
+                FowardIter out = result;
                 try{
                     for (; beg != end; ++beg, ++out){
                         alloc.construct(&*out, *beg);
@@ -319,6 +354,12 @@ namespace MyStl{
                     std::swap(this->_end, other._end);
                     std::swap(this->cap, other.cap);
                 }
+            }
+
+            template<typename InputIter>
+            iterator batch_move(InputIter first, InputIter last, iterator result){
+                std::memmove(result, first, (last - first) * sizeof(T));
+                return result + (last - first);
             }
     };
 }
