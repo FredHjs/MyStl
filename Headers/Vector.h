@@ -261,6 +261,7 @@ namespace MyStl{
         public:
             /* modifiers */
             void clear() noexcept {
+                erase(_begin, _end);
             }
 
             iterator erase(const_iterator pos){
@@ -273,10 +274,8 @@ namespace MyStl{
 
             iterator erase(const_iterator first, const_iterator last){
                 assert((first >= _begin && first < _end) 
-                      && (last >= _begin && last < _end) 
+                      && (last >= _begin && last <= _end) 
                       && (first <= last));
-
-                //size_type erased_num = last - first;
 
                 auto first_to_move = const_cast<iterator>(last);
                 auto move_to = const_cast<iterator>(first);
