@@ -1,6 +1,7 @@
 #include "Vector.h"
 #include <iostream>
 #include <string>
+#include <vector>
 
 int main(){
     MyStl::Vector<int> v{1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17};
@@ -28,7 +29,7 @@ int main(){
     //     std::cout << ex.what() << std::endl;
     // }
     
-    std::string s("abcdefg");
+    std::string s(9, 'a');
     v2.assign(6, 'g');
     std::cout << v2.size() << " " << v2.capacity() << std::endl;
     v2.shrink_to_fit();
@@ -38,9 +39,21 @@ int main(){
     for (auto& c : v){
         std::cout << c << " ";
     }
-
     std::cout << std::endl;
+
+    MyStl::Vector<std::string> mvs{"hello", "world"};
+    mvs.emplace(mvs.begin(), 9, 'a');
+    std::cout << *mvs.begin() << std::endl;
+
+    // std::vector<int> vi;
+    // vi.insert(vi.begin(), v.begin(), v.end());
+
     v.clear();
     std::cout << (v.empty() ? "empty" : "still not empty...") << std::endl;
-    
+
+    v2.insert(v2.begin(), 10, 'c');
+    for (auto& c : v2){
+        std::cout << c << " ";
+    }
+    std::cout << std::endl;
 }
