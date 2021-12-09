@@ -322,6 +322,8 @@ namespace MyStl{
                     *insert_pos = value_backup;
                 }
 
+                _end = new_end;
+
                 return ret;
             }
 
