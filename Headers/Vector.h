@@ -5,9 +5,8 @@
 #include <utility>
 #include <assert.h>
 #include <stdexcept>
-#include <type_traits>
 #include <cstring>
-//#include <type_traits>
+#include <utility>
 
 namespace MyStl{
     template <typename T>
@@ -38,15 +37,15 @@ namespace MyStl{
             /* ctors and dtors */
             Vector() noexcept {
                 try{
-                    _end = _begin = alloc.allocate(16);
-                    cap = _begin + 16;
+                    _end = _begin = alloc.allocate(8);
+                    cap = _begin + 8;
                 }catch(...){
                     _begin = _end = cap = nullptr;
                 }
             }
 
             Vector(size_type count, const T& value){
-                size_type capa = count < 16 ? 16 : count;
+                size_type capa = count < 8 ? 8 : count;
                 
                 try{
                     _begin = alloc.allocate(capa);
@@ -68,7 +67,7 @@ namespace MyStl{
 
                 _begin = alloc.allocate(last - first);
 
-                size_type capa = (last - first) < 16 ? 16 : (last - first);
+                size_type capa = (last - first) < 8 ? 8 : (last - first);
 
                 _end = uninitialized_copy(first, last, _begin);
 
@@ -120,7 +119,7 @@ namespace MyStl{
                 this->swap(temp);
             }
 
-            //TODO: differenciate between this and the above overload
+            //TODO: differenciate between this and the above overload (is_input_iterator)
             template<class InputIt> void assign(InputIt first, InputIt last){
                 assert(first < last);
 
@@ -291,6 +290,59 @@ namespace MyStl{
                 return first_to_move;
             }
 
+            // T must be copy-assignable and copy-insertable to use this overload
+            iterator insert(const_iterator pos, const T& value){
+                assert(pos >= _begin && pos <= _end);
+                // in case value refers to an element within the container
+                T value_backup(value);
+                emplace(pos, value_backup);
+            }
+
+            // T must be move-assignable and move-insertable to use this overload
+            iterator insert(const_iterator pos, T&& value){
+                assert(pos >= _begin && pos <= _end);
+                emplace(pos, std::move(value));
+            }
+
+            iterator insert(const_iterator pos, size_type count, const T& value){
+                if (count == 0) return const_cast<iterator>(pos);
+
+                T value_backup(value);
+                auto insert_pos = const_cast<iterator>(pos);
+                
+                if (cap - _end < count){
+                    size_type insert_index = pos - _begin;
+                    reallocate(size() + count);
+                    insert_pos = _begin + insert_index;
+                }
+
+                auto new_end = batch_move(insert_pos, _end, insert_pos + count), ret = insert_pos;
+                
+                for (size_type i = 0; i != count; ++i, ++insert_pos){
+                    *insert_pos = value_backup;
+                }
+
+                return ret;
+            }
+
+            template<class... Args> iterator emplace(const_iterator pos, Args&&... args){
+                assert(pos >= _begin && pos <= _end);
+                
+                iterator insert_pos;
+                if (_end != cap){
+                    insert_pos = const_cast<iterator>(pos);
+                }else{
+                    size_type insert_index = pos - _begin;
+                    reallocate(size() + 1);
+                    insert_pos = _begin + insert_index;
+                }
+
+                auto new_end = batch_move(insert_pos, _end, insert_pos + 1);
+                *insert_pos = value_type(std::forward<Args>(args)...);
+                _end = new_end;
+                return insert_pos; 
+            }
+
         private:
             /* helpers */
             void initialize_all(const T& val){
@@ -335,7 +387,7 @@ namespace MyStl{
                     }
                 }
 
-                return out;     //returns the iterator after last copied element
+                return out;     //returns the iterator after last moved element
             }
 
             void free(){
@@ -357,8 +409,21 @@ namespace MyStl{
 
             template<typename InputIter>
             iterator batch_move(InputIter first, InputIter last, iterator result){
+                if (first == last) return result;
+
                 std::memmove(result, first, (last - first) * sizeof(T));
-                return result + (last - first);
+                return result + (last - first); //returns iterator after the last moved element
+            }
+
+            void reallocate(size_type reserve_cap){
+                size_type new_cap = size() * 2 < reserve_cap ? reserve_cap : size() * 2;
+                iterator new_begin = alloc.allocate(new_cap);
+                auto new_cap_iter = new_begin + new_cap;
+                auto new_end = uninitialized_move(_begin, _end, new_begin);
+                free();
+                _begin = new_begin;
+                _end = new_end;
+                cap = new_cap_iter;
             }
     };
 }
