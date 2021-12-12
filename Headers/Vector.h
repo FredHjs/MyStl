@@ -7,6 +7,8 @@
 #include <stdexcept>
 #include <cstring>
 #include <utility>
+#include <type_traits>
+#include <algorithm>
 
 namespace MyStl{
     template <typename T>
@@ -64,10 +66,11 @@ namespace MyStl{
             template<class InputIt> 
             Vector(InputIt first, InputIt last){
                 assert(first < last);
+                size_type n = last - first;
 
-                _begin = alloc.allocate(last - first);
+                size_type capa = n < 8 ? 8 : n;
 
-                size_type capa = (last - first) < 8 ? 8 : (last - first);
+                _begin = alloc.allocate(capa);
 
                 _end = uninitialized_copy(first, last, _begin);
 
@@ -266,7 +269,7 @@ namespace MyStl{
             iterator erase(const_iterator pos){
                 assert(pos >= _begin && pos < _end);
                 iterator erase_pos = const_cast<iterator>(pos);
-                batch_move(erase_pos + 1, _end, erase_pos);
+                std::move(erase_pos + 1, _end, erase_pos);
                 alloc.destroy(--_end);
                 return const_cast<iterator>(pos);
             }
@@ -278,14 +281,14 @@ namespace MyStl{
 
                 auto first_to_move = const_cast<iterator>(last);
                 auto move_to = const_cast<iterator>(first);
+                auto old_end = _end;
 
-                iterator new_end = batch_move(first_to_move, _end, move_to);
+                std::move(first_to_move, _end, move_to);
+                _end -= (last - first);
 
-                for (iterator i = new_end; i != _end; ++i){
+                for (iterator i = old_end; i != _end; --i){
                     alloc.destroy(i);
                 }
-
-                _end = new_end;
 
                 return first_to_move;
             }
@@ -316,15 +319,58 @@ namespace MyStl{
                     insert_pos = _begin + insert_index;
                 }
 
-                auto new_end = batch_move(insert_pos, _end, insert_pos + count), ret = insert_pos;
+                size_type num_after_pos = _end - insert_pos;
+                if (num_after_pos >= count){
+                    auto new_end = uninitialized_copy(_end - count, _end, _end), ret = insert_pos;
+                    batch_move_backward_unchecked(insert_pos, _end - count, _end);
                 
-                for (size_type i = 0; i != count; ++i, ++insert_pos){
-                    *insert_pos = value_backup;
+                    for (size_type i = 0; i != count; ++i, ++insert_pos){
+                        *insert_pos = value_backup;
+                    }
+
+                    _end = new_end;
+
+                    return ret;
+                }else{
+                    auto new_end = uninitialized_move(insert_pos, _end, insert_pos + count), ret = insert_pos;
+
+                    for (; insert_pos != _end; ++insert_pos){
+                        *insert_pos = value;
+                    }
+                    
+                    uninitialized_fill_n(insert_pos, count - num_after_pos, value);
+
+                    _end = new_end;
+                    return ret;
+                }
+            }
+
+            //TODO: differenciate between this and the above overload (is_input_iterator)
+            template<class InputIt> iterator insert(const_iterator pos, InputIt first, InputIt last){
+                assert(first <= last);
+                if (first == last) return const_cast<iterator>(pos);
+
+                auto insert_pos = const_cast<iterator>(pos);
+                size_type count = last - first;
+
+                if (cap - _end < count){
+                    size_type insert_index = pos - _begin;
+                    reallocate(size() + count);
+                    insert_pos = _begin + insert_index;
+                }
+                iterator old_end = _end;
+                
+                for (; first != last; ++first){
+                    emplace_back(*first);
                 }
 
-                _end = new_end;
+                std::rotate(insert_pos, old_end, _end); //TODO: substitute with MyStl::rotate
 
-                return ret;
+                return insert_pos;
+            }
+
+            iterator insert( const_iterator pos, std::initializer_list<T> ilist ){
+                return insert(pos, ilist.begin(), ilist.end());
             }
 
             template<class... Args> iterator emplace(const_iterator pos, Args&&... args){
@@ -339,10 +385,30 @@ namespace MyStl{
                     insert_pos = _begin + insert_index;
                 }
 
-                auto new_end = batch_move(insert_pos, _end, insert_pos + 1);
+                auto new_end = batch_move_backward_unchecked(insert_pos, _end, insert_pos + 1);
                 *insert_pos = value_type(std::forward<Args>(args)...);
                 _end = new_end;
                 return insert_pos; 
+            }
+
+            template<class... Args> void emplace_back(Args&&... args){
+                if (_end == cap) reallocate(size() + 1);
+
+                *(_end++) = value_type(std::forward<Args>(args)...);
+            }
+
+            void push_back(const T& value){
+                emplace_back(value);
+            }
+
+            void push_back(T&& value){
+                emplace_back(std::move(value));
+            }
+
+            void pop_back(){
+                assert(!(size() == 0));
+                alloc.destroy(_end);
+                --_end;
             }
 
         private:
@@ -362,6 +428,12 @@ namespace MyStl{
 
             template <typename InputIter, typename FowardIter>
             FowardIter uninitialized_copy(InputIter beg, InputIter end, FowardIter result){
+                return uninitialized_copy_unchecked(beg, end, result, 
+                            std::is_trivially_copy_assignable<value_type>{});
+            }
+
+            template <typename InputIter, typename FowardIter>
+            FowardIter uninitialized_copy_unchecked(InputIter beg, InputIter end, FowardIter result, std::false_type){
                 FowardIter out = result;
                 try{
                     for (; beg != end; ++beg, ++out){
@@ -374,6 +446,15 @@ namespace MyStl{
                 }
 
                 return out;     //returns the iterator after last copied element
+            }
+
+            template <typename InputIter, typename FowardIter>
+            FowardIter uninitialized_copy_unchecked(InputIter beg, InputIter end, FowardIter result, std::true_type){
+                for (; beg != end; ++beg, ++result){
+                    *result = *beg;
+                }
+
+                return result;
             }
 
             template <typename InputIt, typename FowardIt>
@@ -392,6 +473,22 @@ namespace MyStl{
                 return out;     //returns the iterator after last moved element
             }
 
+            template <typename FowardIter, typename Count>
+            FowardIter uninitialized_fill_n(FowardIter beg, Count count, T value){
+                FowardIter out = beg;
+                try{
+                    for (; count > 0; --count, ++out){
+                        alloc.construct(&*out, value);
+                    }
+                }catch(...){
+                    for (; out != beg; --out){
+                        alloc.destroy(&*out);
+                    }
+                }
+
+                return out;     //returns the iterator after last copied element
+            }
+
             void free(){
                 for (value_type* i = _begin; i != _end; ++i){
                     alloc.destroy(i);
@@ -408,20 +505,36 @@ namespace MyStl{
                     std::swap(this->cap, other.cap);
                 }
             }
-
+            
+            /* move backward from [first, last) to [..., result) */
             template<typename InputIter>
-            iterator batch_move(InputIter first, InputIter last, iterator result){
+            iterator batch_move_backward_unchecked(InputIter first, InputIter last, iterator result){
                 if (first == last) return result;
 
-                std::memmove(result, first, (last - first) * sizeof(T));
-                return result + (last - first); //returns iterator after the last moved element
+                iterator ret = result;
+                while(last != first){
+                    *(--result) = std::move(*(--last));
+                }
+
+                return ret;  //returns iterator after the last moved element
+                //size_type n = last - first;
+                //auto result_copy = result;
+                //iterator ret = result + n;
+                //iterator ret = static_cast<value_type*>(std::memmove(result, first, n * sizeof(T)));
+                //ret += n;
+                //return ret; 
             }
 
             void reallocate(size_type reserve_cap){
-                size_type new_cap = size() * 2 < reserve_cap ? reserve_cap : size() * 2;
+                // if (reserve_cap > max_size()) {
+                //     throw std::out_of_range("container can't hold desired size");
+                // }
+                auto size_ = size();
+                size_type new_cap = size_ * 2 < reserve_cap ? reserve_cap : size_ * 2;
                 iterator new_begin = alloc.allocate(new_cap);
                 auto new_cap_iter = new_begin + new_cap;
                 auto new_end = uninitialized_move(_begin, _end, new_begin);
+                
                 free();
                 _begin = new_begin;
                 _end = new_end;
