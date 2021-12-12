@@ -21,15 +21,15 @@ int main(){
 
     std::cout << std::endl;
 
-    // v = v3;
-    // try{
-    //     v.at(0) = 2;
-    //     std::cout << v.at(0) << std::endl;
-    // }catch(std::out_of_range const& ex){
-    //     std::cout << ex.what() << std::endl;
-    // }
+    try{
+        v.at(0) = 2;
+        std::cout << v.at(0) << std::endl;
+    }catch(std::out_of_range const& ex){
+        std::cout << ex.what() << std::endl;
+    }
     
     std::string s(9, 'a');
+
     v2.assign(6, 'g');
     std::cout << v2.size() << " " << v2.capacity() << std::endl;
     v2.shrink_to_fit();
@@ -42,18 +42,27 @@ int main(){
     std::cout << std::endl;
 
     MyStl::Vector<std::string> mvs{"hello", "world"};
-    mvs.emplace(mvs.begin(), 9, 'a');
-    std::cout << *mvs.begin() << std::endl;
+    for (auto& s : mvs){
+        std::cout << s << " ";
+    } 
+    std::cout << std::endl;
+    mvs.insert(mvs.begin(), 3, "zzz");
+    for (auto& s : mvs){
+        std::cout << s << " ";
+    }
 
     // std::vector<int> vi;
-    // vi.insert(vi.begin(), v.begin(), v.end());
+    // vi.insert();
 
     v.clear();
     std::cout << (v.empty() ? "empty" : "still not empty...") << std::endl;
 
+    MyStl::Vector<char> temp{'z', 'z', 'z', 'z', 'z'};
     v2.insert(v2.begin(), 10, 'c');
+    v2.insert(v2.begin(), temp.begin(), temp.begin() + 3);
     for (auto& c : v2){
         std::cout << c << " ";
     }
     std::cout << std::endl;
+
 }
