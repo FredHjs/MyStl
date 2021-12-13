@@ -286,8 +286,8 @@ namespace MyStl{
                 std::move(first_to_move, _end, move_to);
                 _end -= (last - first);
 
-                for (iterator i = old_end; i != _end; --i){
-                    alloc.destroy(i);
+                while(old_end != _end){
+                    alloc.destroy(--old_end);
                 }
 
                 return first_to_move;
@@ -335,10 +335,10 @@ namespace MyStl{
                     auto new_end = uninitialized_move(insert_pos, _end, insert_pos + count), ret = insert_pos;
 
                     for (; insert_pos != _end; ++insert_pos){
-                        *insert_pos = value;
+                        *insert_pos = value_backup;
                     }
                     
-                    uninitialized_fill_n(insert_pos, count - num_after_pos, value);
+                    uninitialized_fill_n(insert_pos, count - num_after_pos, value_backup);
 
                     _end = new_end;
                     return ret;
@@ -364,12 +364,12 @@ namespace MyStl{
                     emplace_back(*first);
                 }
 
-                std::rotate(insert_pos, old_end, _end); //TODO: substitute with MyStl::rotate
+                std::rotate(insert_pos, old_end, _end); //TODO: define rotate in algorithm part
 
                 return insert_pos;
             }
 
-            iterator insert( const_iterator pos, std::initializer_list<T> ilist ){
+            iterator insert(const_iterator pos, std::initializer_list<T> ilist){
                 return insert(pos, ilist.begin(), ilist.end());
             }
 
@@ -409,6 +409,30 @@ namespace MyStl{
                 assert(!(size() == 0));
                 alloc.destroy(_end);
                 --_end;
+            }
+
+            void resize(size_type count){
+                resize(count, value_type());
+            }
+
+            void resize(size_type count, const value_type& value){
+                if (count < size()){
+                    erase(_begin + count, _end);
+                }
+
+                if (size() < count){
+                    insert(_end, count - size(), value);
+                }
+
+                //if count == size() do nothing
+            }
+
+            void swap(Vector<T>& other) noexcept {
+                if (&other != this){
+                    std::swap(this->_begin, other._begin);
+                    std::swap(this->_end, other._end);
+                    std::swap(this->cap, other.cap);
+                }
             }
 
         private:
@@ -497,14 +521,6 @@ namespace MyStl{
 
                 _begin = _end = cap = nullptr;
             }
-
-            void swap(Vector<T>& other) noexcept {
-                if (&other != this){
-                    std::swap(this->_begin, other._begin);
-                    std::swap(this->_end, other._end);
-                    std::swap(this->cap, other.cap);
-                }
-            }
             
             /* move backward from [first, last) to [..., result) */
             template<typename InputIter>
@@ -541,6 +557,41 @@ namespace MyStl{
                 cap = new_cap_iter;
             }
     };
+
+    //TODO: move this function into algorithm part
+    template<typename InputIt1, typename InputIt2> bool equal(InputIt1 first1, InputIt1 last1, InputIt2 first2){
+        for (; first1 != last1; ++first1, ++first2){
+            if (*first1 != *first2) return false;
+        }
+
+        return true;
+    }
+
+    /* operators */
+    template<class T>
+    bool operator==(const MyStl::Vector<T>& lhs, const MyStl::Vector<T>& rhs){
+        if (lhs.size() != rhs.size()) return false;
+
+        return equal(lhs.begin(), lhs.end(), rhs.begin());
+    }
+
+    template<class T>
+    bool operator!=(const MyStl::Vector<T>& lhs, const MyStl::Vector<T>& rhs){return !(lhs == rhs);}
+
+    //TODO: define lexicographical_compare in algorithm part
+    template<class T>
+    bool operator<(const MyStl::Vector<T>& lhs, const MyStl::Vector<T>& rhs){
+        return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+    }
+
+    template<class T>
+    bool operator<=(const MyStl::Vector<T>& lhs, const MyStl::Vector<T>& rhs){return !(rhs < lhs);}
+
+    template<class T>
+    bool operator>(const MyStl::Vector<T>& lhs, const MyStl::Vector<T>& rhs){return rhs < lhs;}
+
+    template<class T>
+    bool operator>=(const MyStl::Vector<T>& lhs, const MyStl::Vector<T>& rhs){return !(lhs < rhs);}
 }
 
 #endif
