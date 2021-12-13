@@ -54,15 +54,24 @@ int main(){
     // std::vector<int> vi;
     // vi.insert();
 
+    std::cout << std::endl;
     v.clear();
     std::cout << (v.empty() ? "empty" : "still not empty...") << std::endl;
 
     MyStl::Vector<char> temp{'z', 'z', 'z', 'z', 'z'};
     v2.insert(v2.begin(), 10, 'c');
     v2.insert(v2.begin(), temp.begin(), temp.begin() + 3);
+    
+
+    v2.resize(20, '3');
     for (auto& c : v2){
         std::cout << c << " ";
     }
     std::cout << std::endl;
 
+    mvs.resize(10, "haha");
+    for (auto& s : mvs){
+        std::cout << s << " ";
+    }
+    std::cout << std::endl;
 }
