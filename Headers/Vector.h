@@ -10,6 +10,8 @@
 #include <type_traits>
 #include <algorithm>
 
+#include "Iterator.h"
+
 namespace MyStl{
     template <typename T>
     class Vector{
@@ -122,8 +124,8 @@ namespace MyStl{
                 this->swap(temp);
             }
 
-            //TODO: differenciate between this and the above overload (is_input_iterator)
-            template<class InputIt> void assign(InputIt first, InputIt last){
+            template<class InputIt, typename std::enable_if<MyStl::Is_Input_Iterator<InputIt>::value, bool>::type = true> 
+            void assign(InputIt first, InputIt last){
                 assert(first < last);
 
                 if (capacity() < last - first || last - first < size()){
@@ -345,8 +347,8 @@ namespace MyStl{
                 }
             }
 
-            //TODO: differenciate between this and the above overload (is_input_iterator)
-            template<class InputIt> iterator insert(const_iterator pos, InputIt first, InputIt last){
+            template<class InputIt, typename std::enable_if<MyStl::Is_Input_Iterator<InputIt>::value, bool>::type = true> 
+            iterator insert(const_iterator pos, InputIt first, InputIt last){
                 assert(first <= last);
                 if (first == last) return const_cast<iterator>(pos);
 
