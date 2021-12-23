@@ -36,6 +36,10 @@ int main(){
     std::cout << v2.size() << " " << v2.capacity() << std::endl;
     v.erase(v.begin(), v.begin() + 3);
     v.erase(v.end() - 4);
+
+    v3.assign({100, 1000, 10000});
+    v.assign(v3.begin(), v3.end());
+    
     for (auto& c : v){
         std::cout << c << " ";
     }
