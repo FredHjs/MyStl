@@ -39,6 +39,12 @@ int main(){
 
     v3.assign({100, 1000, 10000});
     v.assign(v3.begin(), v3.end());
+
+    for (auto i = v.crbegin(); i != v.crend(); ++i){
+        std::cout << *i << " ";
+    }
+
+    std::cout << std::endl;
     
     for (auto& c : v){
         std::cout << c << " ";
