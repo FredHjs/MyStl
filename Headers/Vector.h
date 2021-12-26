@@ -7,7 +7,6 @@
 #include <stdexcept>
 #include <cstring>
 #include <utility>
-#include <type_traits>
 #include <algorithm>
 
 #include "Iterator.h"
@@ -15,17 +14,18 @@
 namespace MyStl{
     template <typename T>
     class Vector{
-        using value_type = typename std::allocator<T>::value_type;
-        using size_type = typename std::allocator<T>::size_type;
-        using difference_type = typename std::allocator<T>::difference_type;
-        using pointer = typename std::allocator_traits<std::allocator<T>>::pointer;
-        using const_pointer = typename std::allocator_traits<std::allocator<T>>::const_pointer;
-        using reference = T&;
-        using const_reference = const T&;
-        using iterator = T*;
-        using const_iterator = const T*;
-
-        //TODO: reverse_iterator
+        public:
+            using value_type = typename std::allocator<T>::value_type;
+            using size_type = typename std::allocator<T>::size_type;
+            using difference_type = typename std::allocator<T>::difference_type;
+            using pointer = typename std::allocator_traits<std::allocator<T>>::pointer;
+            using const_pointer = typename std::allocator_traits<std::allocator<T>>::const_pointer;
+            using reference = T&;
+            using const_reference = const T&;
+            using iterator = T*;
+            using const_iterator = const T*;
+            using reverse_iterator = Reverse_Iterator<iterator>;
+            using const_reverse_iterator = Reverse_Iterator<const_iterator>;
 
         private:
             /* member fields*/
@@ -217,7 +217,29 @@ namespace MyStl{
                 return _end;
             }
 
-            //TODO: reverse_iterator functions
+            reverse_iterator rbegin() noexcept {
+                return reverse_iterator(_end);
+            } 
+
+            const_reverse_iterator rbegin() const noexcept {
+                return const_reverse_iterator(_end);
+            }
+
+            const_reverse_iterator crbegin() const noexcept {
+                return const_reverse_iterator(_end);
+            }
+
+            reverse_iterator rend() noexcept {
+                return reverse_iterator(_begin);
+            }
+
+            const_reverse_iterator rend() const noexcept {
+                return const_reverse_iterator(_begin);
+            }
+
+            const_reverse_iterator crend() const noexcept {
+                return const_reverse_iterator(_begin);
+            }
 
         public:
             /* capacity */
@@ -535,18 +557,9 @@ namespace MyStl{
                 }
 
                 return ret;  //returns iterator after the last moved element
-                //size_type n = last - first;
-                //auto result_copy = result;
-                //iterator ret = result + n;
-                //iterator ret = static_cast<value_type*>(std::memmove(result, first, n * sizeof(T)));
-                //ret += n;
-                //return ret; 
             }
 
             void reallocate(size_type reserve_cap){
-                // if (reserve_cap > max_size()) {
-                //     throw std::out_of_range("container can't hold desired size");
-                // }
                 auto size_ = size();
                 size_type new_cap = size_ * 2 < reserve_cap ? reserve_cap : size_ * 2;
                 iterator new_begin = alloc.allocate(new_cap);
