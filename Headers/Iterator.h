@@ -113,13 +113,13 @@ namespace MyStl{
 
             template<class U> Reverse_Iterator(const Reverse_Iterator<U>& other) : _current(other._current){};
 
-            template<class U> reverse_iterator& operator=(const reverse_iterator<U>& other){
+            template<class U> Reverse_Iterator& operator=(const Reverse_Iterator<U>& other){
                 _current = other.base();
             }
 
         public:
             /* operations */
-            Iter base(){return _current;}
+            Iter base() const {return _current;}
 
             reference operator*() const {
                 auto temp = _current;
@@ -180,12 +180,12 @@ namespace MyStl{
 
     template<class Iterator1, class Iterator2>
     bool operator==(const Reverse_Iterator<Iterator1>& lhs, const Reverse_Iterator<Iterator2>& rhs){
-        return lhs._current == rhs._current;
+        return lhs.base() == rhs.base();
     }
 
     template<class Iterator1, class Iterator2>
     bool operator<(const Reverse_Iterator<Iterator1>& lhs, const Reverse_Iterator<Iterator2>& rhs){
-        return rhs._current < lhs._current;
+        return rhs.base() < lhs.base();
     }
 
     template<class Iterator1, class Iterator2>
@@ -211,13 +211,13 @@ namespace MyStl{
     template<class Iter>
     Reverse_Iterator<Iter>
     operator+(typename Reverse_Iterator<Iter>::difference_type n,const Reverse_Iterator<Iter>& it){
-        return Reverse_Iterator<Iter>(it._current - n);
+        return Reverse_Iterator<Iter>(it.base() - n);
     }
 
     template<class Iter>
     typename Reverse_Iterator<Iter>::difference_type
     operator-(const Reverse_Iterator<Iter>& lhs, const Reverse_Iterator<Iter>& rhs){
-        return lhs._current - rhs._current;
+        return lhs.base() - rhs.base();
     }
 }
 
