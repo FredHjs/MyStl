@@ -115,7 +115,7 @@ namespace MyStl{
             }
 
             Vector& operator=(std::initializer_list<T> ilist){
-                Vector<T> temp(ilist._begin, ilist._end);
+                Vector<T> temp(ilist.begin(), ilist.end());
                 this->swap(temp);
                 return *this;
             }
