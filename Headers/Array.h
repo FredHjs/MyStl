@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "Iterator.h"
+#include "Algorithm.h"
 
 namespace MyStl{
     template<class T, std::size_t N> 
@@ -25,7 +26,7 @@ namespace MyStl{
             using reverse_iterator = Reverse_Iterator<iterator>;
             using const_reverse_iterator = Reverse_Iterator<const_iterator>;
 
-            //has to be public due to implicitly declared ctor and dtors
+            //has to be public due to rules of aggregate initialization
             T _elements[N];
 
         public:
@@ -113,6 +114,36 @@ namespace MyStl{
                 return first2;
             }
     };
+
+    template<class T, std::size_t N>
+    bool operator==(const MyStl::Array<T,N>& lhs, const MyStl::Array<T,N>& rhs){
+        return MyStl::equal(lhs.begin(), lhs.end(), rhs.begin());
+    }
+
+    template<class T, std::size_t N>
+    bool operator<(const MyStl::Array<T,N>& lhs, const MyStl::Array<T,N>& rhs){
+        return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+    }
+
+    template<class T, std::size_t N>
+    bool operator!=(const MyStl::Array<T,N>& lhs, const MyStl::Array<T,N>& rhs){
+        return !(lhs == rhs);
+    }
+
+    template<class T, std::size_t N>
+    bool operator<=(const MyStl::Array<T,N>& lhs, const MyStl::Array<T,N>& rhs){
+        return !(rhs < lhs);
+    }
+
+    template<class T, std::size_t N>
+    bool operator>(const MyStl::Array<T,N>& lhs, const MyStl::Array<T,N>& rhs){
+        return rhs < lhs;
+    }
+
+    template<class T, std::size_t N>
+    bool operator>=(const MyStl::Array<T,N>& lhs, const MyStl::Array<T,N>& rhs){
+        return !(lhs < rhs);
+    }
 }
 
 #endif
