@@ -10,6 +10,7 @@
 #include <algorithm>
 
 #include "Iterator.h"
+#include "Algorithm.h"
 
 namespace MyStl{
     template <typename T>
@@ -573,21 +574,12 @@ namespace MyStl{
             }
     };
 
-    //TODO: move this function into algorithm part
-    template<typename InputIt1, typename InputIt2> bool equal(InputIt1 first1, InputIt1 last1, InputIt2 first2){
-        for (; first1 != last1; ++first1, ++first2){
-            if (*first1 != *first2) return false;
-        }
-
-        return true;
-    }
-
     /* operators */
     template<class T>
     bool operator==(const MyStl::Vector<T>& lhs, const MyStl::Vector<T>& rhs){
         if (lhs.size() != rhs.size()) return false;
 
-        return equal(lhs.begin(), lhs.end(), rhs.begin());
+        return MyStl::equal(lhs.begin(), lhs.end(), rhs.begin());
     }
 
     template<class T>
