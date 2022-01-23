@@ -60,7 +60,25 @@ namespace MyStl
                 return cur;
             }
 
+            Deque_Iterator& operator++(){
+                ++cur;
+                if (cur == last){
+                    change_node_by(1);
+                    cur = first;
+                }
+            }
 
+            Deque_Iterator& operator++(){
+                
+            }
+
+            private:
+                /* helpers */
+                void change_node_by(difference_type n){
+                    map_node += n;
+                    first = cur = *map_node;
+                    last = *map_node + block_size;
+                }
     };
 } // namespace MyStl
 
