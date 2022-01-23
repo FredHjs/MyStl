@@ -4,6 +4,7 @@
 #include <memory>
 
 #include "Iterator.h"
+#include "Algorithm.h"
 
 namespace MyStl
 {
@@ -146,6 +147,12 @@ namespace MyStl
                 first = cur = *map_node;
                 last = *map_node + block_size;
             }
+
+            void change_node_to(map_ptr node){
+                map_node = node;
+                first = *map_node;
+                last = first + block_size;
+            }
     };
 
     template <typename T>
@@ -159,10 +166,101 @@ namespace MyStl
             using const_reference = const value_type&;
             using pointer = allocator_type::pointer;
             using const_pointer = allocator_type::const_pointer;
-            using iterator = Deque_Iterator<value_type>;
-            using const_iterator = Deque_Iterator<const value_type>;
+            using iterator = Deque_Iterator<value_type, value_type&, value_type*>;
+            using const_iterator = Deque_Iterator<value_type, const value_type&, const value_type*>;
             using reverse_iterator = Reverse_Iterator<iterator>;
             using const_reverse_iterator = Reverse_Iterator<const_iterator>;
+
+            using map_ptr = pointer*;
+            using map_allocator = std::allocator<pointer>;
+
+            static constexpr size_type block_size = sizeof(T) < 512 ? 512/sizeof(T) : 1;
+
+            allocator_type _get_al(){return allocator_type();}
+            
+            map_allocator _get_map_al(){return map_allocator();}\
+
+        private:
+            iterator _begin;
+
+            iterator _end;
+
+            map_ptr _map;
+
+            size_type _map_size;
+
+        public:
+            /* ctor and dtor */
+            deque(){
+                init_map_n(0);
+            }
+
+            deque(size_type count, const T& value){
+                fill_init_n(count, value);
+            }
+
+            explicit deque(size_type count){
+                fill_init_n(count, value_type());
+            }
+
+            
+
+        private:
+            /* helpers */
+            void init_map_n(size_type num_elem){
+                size_type num_block = (num_elem % block_size) ? (num_elem / block_size + 1) 
+                                                                : (num_elem / block_size);
+                size_type map_size = MyStl::max(num_block + 2, 8);
+
+                try{
+                    _map = _get_map_al().allocate(map_size);
+                }catch(...){
+                    _map = nullptr;
+                    throw;
+                }
+
+                map_ptr block_begin = _map + (map_size - num_block) / 2;
+
+                try{
+                    create_blocks_n(block_begin, num_block);
+                }catch(...){
+                    _get_map_al().deallocate(_map, map_size);
+                    _map = nullptr;
+                    throw;
+                }
+                
+                _begin.change_node_to(block_begin);
+                _end.change_node_to(block_begin + num_block);
+                _begin.cur = _begin.first;
+                _end.cur = _end.first + num_elem % block_size;
+            }
+
+            void create_blocks_n(map_ptr begin, size_type n){
+                auto cur = begin;
+
+                try{
+                    for (size_type i = 0; i <= n; ++i, ++cur){
+                        *(begin + i) = _get_al().allocate(block_size);
+                    }
+                }catch(...){
+                    for (; cur != begin; --cur){
+                        _get_al().deallocate(*(cur - 1), block_size);
+                        cur = nullptr;
+                    }
+                    throw;
+                }
+            }
+
+            void fill_init_n(size_type n, const value_type& value){
+                init_map_n(n);
+
+                for (auto cur = _begin.map_node; cur != _end.map_node; ++cur){
+                    MyStl::uninitialized_fill(*cur, *cur + block_size, value);
+                }
+
+                MyStl::uninitialized_fill(*_end.map_node, _end.cur, value);
+            }
+        
     };
 } // namespace MyStl
 
