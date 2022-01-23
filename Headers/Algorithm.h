@@ -1,6 +1,9 @@
 #ifndef MYSTL_ALGORITHM_H
 #define MYSTL_ALGORITHM_H
 
+#include <type_traits>
+#include <memory>
+
 namespace MyStl
 {
 template<typename InputIt1, typename InputIt2> 
@@ -23,6 +26,48 @@ const T& min(const T& op_1, const T& op_2){return op_1 < op_2 ? op_1 : op_2;}
 
 template <typename T, typename F>
 const T& min(const T& op_1, const T& op_2, F& pred){return pred(op_1, op_2) ? op_1 : op_2;}
+
+template<typename ForwardIt, typename T>
+void uninitialized_fill_unchecked(ForwardIt first, ForwardIt last, const T& value, std::true_type){
+    fill(first, last, value);
+}
+
+template<typename ForwardIt, typename T>
+void uninitialized_fill_unchecked(ForwardIt first, ForwardIt last, const T& value, std::false_type){
+    auto cur = first;
+    try{
+        for (; cur != last; ++cur){
+            ::new((*void) &*cur) T(value);
+        }
+    }catch(...){
+        for (; first != cur; ++first){
+            destroy(&*cur);
+        }
+    }
+}
+
+template<typename ForwardIt, typename T>
+void uninitialized_fill(ForwardIt first, ForwardIt last, const T& value){
+    uninitialized_fill_unchecked(first, last, value, std::is_trivially_copy_constructible<T>{});
+}
+
+template<typename T>
+void destroy_unchecked(T* p, std::true_type){}
+
+template<typename T>
+void destroy_unchecked(T* p, std::false_type){
+    if (p != nullptr) p -> ~T();
+}
+
+template<typename T>
+void destroy(T* p){
+    destroy_unchecked(p, std::is_trivially_destructible<T>{});
+}
+
+template<typename ForwardIt, typename T>
+void fill(ForwardIt first, ForwardIt last, const T& value){
+    for (; first != last; ++first) {*first = value;}
+}
 } // namespace MyStl
 
 
