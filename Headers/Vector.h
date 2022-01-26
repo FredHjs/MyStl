@@ -66,7 +66,7 @@ namespace MyStl{
 
             explicit Vector(size_type count): Vector(count, T()){};
 
-            template<class InputIt> 
+            template<class InputIt, typename std::enable_if<MyStl::Is_Input_Iterator<InputIt>::value, bool>::type = true> 
             Vector(InputIt first, InputIt last){
                 assert(first < last);
                 size_type n = last - first;
