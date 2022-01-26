@@ -2,14 +2,19 @@
 #define MYSTL_DEQUE_H
 
 #include <memory>
+#include <cassert>
 
 #include "Iterator.h"
 #include "Algorithm.h"
 
 namespace MyStl
 {
+    template <typename T> class Deque;
+
     template<typename T, typename Reference, typename Pointer>
     class Deque_Iterator: Iterator<Random_Access_Iterator_Tag, T, ptrdiff_t, Pointer, Reference>{
+        friend class Deque<T>;
+        
         public:
             using map_ptr = T**;
             using value_ptr = T*;
@@ -178,7 +183,7 @@ namespace MyStl
 
             allocator_type _get_al(){return allocator_type();}
             
-            map_allocator _get_map_al(){return map_allocator();}\
+            map_allocator _get_map_al(){return map_allocator();}
 
         private:
             iterator _begin;
@@ -191,19 +196,33 @@ namespace MyStl
 
         public:
             /* ctor and dtor */
-            deque(){
+            Deque(){
                 init_map_n(0);
             }
 
-            deque(size_type count, const T& value){
+            Deque(size_type count, const T& value){
                 fill_init_n(count, value);
             }
 
-            explicit deque(size_type count){
+            explicit Deque(size_type count){
                 fill_init_n(count, value_type());
             }
-
             
+            template<class InputIt,typename std::enable_if<MyStl::Is_Input_Iterator<InputIt>::value, bool>::type = true> 
+            Deque(InputIt first, InputIt last){
+                assert(first < last);
+
+                copy_init(first, last);
+            }
+
+            Deque(const Deque& other): Deque(other._begin, other._end){}
+
+            Deque(Deque&& other): _begin(std::move(other._begin)), _end(std::move(other._end)), 
+                                _map(other._map), _map_size(other._map_size){
+                other._map = nullptr;
+            }
+
+            Deque(std::initializer_list<T> init): Deque(init.begin(), init.end()){}
 
         private:
             /* helpers */
@@ -259,6 +278,15 @@ namespace MyStl
                 }
 
                 MyStl::uninitialized_fill(*_end.map_node, _end.cur, value);
+            }
+
+            template <typename InputIt>
+            void copy_init(InputIt first, InputIt last){
+                init_map_n(static_cast<size_type>(last - first));
+
+                for (auto i = _begin; first != last; ++first, ++i){
+                    _get_al().construct(i.cur, *first);
+                }
             }
         
     };
