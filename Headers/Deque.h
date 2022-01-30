@@ -224,6 +224,36 @@ namespace MyStl
 
             Deque(std::initializer_list<T> init): Deque(init.begin(), init.end()){}
 
+            ~Deque(){
+                if (_map){
+                    clear();
+                    for (auto i = _map; i < _map + _map_size; ++i){
+                        _get_al().deallocate(*i, block_size);
+                    }
+
+                    _get_map_al().deallocate(_map, _map_size);
+                    _map = nullptr;
+                }
+            }
+
+        public:
+            /*  modifiers  */
+            void clear() noexcept {
+                if (_begin.map_node == _end.map_node){
+                    destroy_range(_begin.cur, _end.cur);
+                }else{
+                    destroy_range(_begin.cur, _begin.last);
+                    for (auto i = _begin.map_node + 1; i != _end.map_node; ++i){
+                        destroy_range(*i, *i + block_size);
+                    }
+                    destroy_range(_end.first, _end.cur);
+                }
+
+                _begin.change_node_to(_map + _map_size / 2);
+                _begin.cur = _begin.first;
+                _end = _begin;
+            }
+
         private:
             /* helpers */
             void init_map_n(size_type num_elem){
@@ -288,7 +318,12 @@ namespace MyStl
                     _get_al().construct(i.cur, *first);
                 }
             }
-        
+
+            void destroy_range(pointer first, pointer last){
+                for (auto cur = first; cur != last; ++cur){
+                    _get_al().destroy(cur);
+                }
+            }
     };
 } // namespace MyStl
 
