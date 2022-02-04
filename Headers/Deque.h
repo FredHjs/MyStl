@@ -2,7 +2,7 @@
 #define MYSTL_DEQUE_H
 
 #include <memory>
-#include <cassert>
+#include <assert.h>
 
 #include "Iterator.h"
 #include "Algorithm.h"
@@ -225,15 +225,41 @@ namespace MyStl
             Deque(std::initializer_list<T> init): Deque(init.begin(), init.end()){}
 
             ~Deque(){
-                if (_map){
-                    clear();
-                    for (auto i = _map; i < _map + _map_size; ++i){
-                        _get_al().deallocate(*i, block_size);
-                    }
+                tidy();
+            }
 
-                    _get_map_al().deallocate(_map, _map_size);
-                    _map = nullptr;
+            Deque& operator=(const Deque& other){
+                if (&other != this){
+                    Deque<T> temp(other);
+                    swap(temp);
                 }
+
+                return *this;
+            }
+
+            Deque& operator=(Deque&& other){
+                tidy();
+                _begin = std::move(other._begin);
+                _end = std::move(other._end);
+                _map = other._map;
+                _map_size = other._map_size;
+
+                other._map = nullptr;
+                other._map_size = 0;
+
+                return *this;
+            }
+
+            Deque& operator=(std::initializer_list<T> ilist){
+                Deque<T> temp(ilist);
+                swap(temp);
+                return *this;
+            }
+
+            void assign (size_type count, const T& value){
+                Deque<T> temp(count, value);
+
+                swap(temp);
             }
 
         public:
@@ -252,6 +278,15 @@ namespace MyStl
                 _begin.change_node_to(_map + _map_size / 2);
                 _begin.cur = _begin.first;
                 _end = _begin;
+            }
+
+            void swap(Deque& other){
+                if (&other != this){
+                    std::swap(_begin, other._begin);
+                    std::swap(_end, other._end);
+                    std::swap(_map, other._map);
+                    std::swap(_map_size, other._map_size);
+                }
             }
 
         private:
@@ -322,6 +357,18 @@ namespace MyStl
             void destroy_range(pointer first, pointer last){
                 for (auto cur = first; cur != last; ++cur){
                     _get_al().destroy(cur);
+                }
+            }
+
+            void tidy(){
+                if (_map){
+                    clear();
+                    for (auto i = _map; i < _map + _map_size; ++i){
+                        _get_al().deallocate(*i, block_size);
+                    }
+
+                    _get_map_al().deallocate(_map, _map_size);
+                    _map = nullptr;
                 }
             }
     };
