@@ -37,7 +37,7 @@ void uninitialized_fill_unchecked(ForwardIt first, ForwardIt last, const T& valu
     auto cur = first;
     try{
         for (; cur != last; ++cur){
-            ::new((*void) &*cur) T(value);
+            ::new((void*) &*cur) T(value);
         }
     }catch(...){
         for (; first != cur; ++first){
