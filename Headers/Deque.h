@@ -3,6 +3,7 @@
 
 #include <memory>
 #include <assert.h>
+#include <stdexcept>
 
 #include "Iterator.h"
 #include "Algorithm.h"
@@ -128,6 +129,10 @@ namespace MyStl
             Deque_Iterator& operator-(difference_type n) const {
                 Deque_Iterator temp = *this;
                 return temp.operator+=(-n);
+            }
+
+            difference_type operator-(Deque_Iterator& rhs){
+                return (cur - first) + (map_node - (rhs.map_node + 1)) * block_size + (rhs.last - rhs.cur);
             }
 
             bool operator==(const Deque_Iterator& rhs){return this->cur == rhs.cur;}
@@ -260,6 +265,70 @@ namespace MyStl
                 Deque<T> temp(count, value);
 
                 swap(temp);
+            }
+
+            template<class InputIt,typename std::enable_if<MyStl::Is_Input_Iterator<InputIt>::value, bool>::type = true> 
+            void assign(InputIt first, InputIt last){
+                Deque<T> temp(first, last);
+                swap(temp);
+            }
+
+            void assign(std::initializer_list<T> ilist){
+                assign(ilist.begin(), ilist.end());
+            }
+
+        public:
+            /* member access */
+            reference at(size_type pos){
+                if (pos >= size()) throw std::out_of_range("member access out of range");
+
+                return *(_begin + pos);
+            }
+
+            const_reference at(size_type pos) const{
+                if (pos >= size()) throw std::out_of_range("member access out of range");
+
+                return *(_begin + static_cast<difference_type>(pos));
+            }
+
+            reference operator[](size_type pos){
+                assert(pos < size());
+                return *(_begin + static_cast<difference_type>(pos));
+            }
+
+            const_reference operator[]( size_type pos ) const{
+                assert(pos < size());
+                return *(_begin + static_cast<difference_type>(pos));
+            }
+
+            reference front(){
+                assert(!empty());
+                return *_begin;
+            }
+
+            const_reference front() const{
+                assert(!empty());
+                return *_begin;
+            }
+
+            reference back(){
+                assert(!empty());
+                return *(_end - 1);
+            }
+
+            const_reference back() const{
+                assert(!empty());
+                return *(_end - 1);
+            }
+
+        public:
+            /* capacity */
+            size_type size() const noexcept{
+                return _end - _begin;
+            }
+
+            bool empty() const noexcept{
+                return _begin == _end;
             }
 
         public:
