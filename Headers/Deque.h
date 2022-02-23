@@ -322,6 +322,56 @@ namespace MyStl
             }
 
         public:
+            /* iterators */
+            iterator begin() noexcept {
+                return _begin;
+            }
+
+            const_iterator begin() const noexcept {
+                return _begin;
+            }
+
+            const_reference cbegin() const noexcept {
+                return _begin;
+            }
+
+            iterator end() noexcept {
+                return _end;
+            }
+
+            const_iterator end() const noexcept {
+                return _end;
+            }
+
+            const_reference cend() const noexcept {
+                return _end;
+            }
+
+            reverse_iterator rbegin() noexcept {
+                return reverse_iterator(_end);
+            }
+
+            const_reverse_iterator rbegin() const noexcept {
+                return const_reverse_iterator(_end);
+            }
+
+            const_reverse_iterator crbegin() const noexcept {
+                return const_reverse_iterator(_end);
+            }
+
+            reverse_iterator rend() noexcept {
+                return reverse_iterator(_begin);
+            }
+
+            const_reverse_iterator rend() const noexcept {
+                return const_reverse_iterator(_begin);
+            }
+
+            const_reverse_iterator crend() const noexcept {
+                return const_reverse_iterator(_begin);
+            }
+
+        public:
             /* capacity */
             size_type size() const noexcept{
                 return _end - _begin;
@@ -329,6 +379,29 @@ namespace MyStl
 
             bool empty() const noexcept{
                 return _begin == _end;
+            }
+
+            size_type max_size() const noexcept {
+                return static_cast<size_type>(-1) / sizeof(value_type);
+            }
+
+            void shrink_to_fit(){
+                for (auto i = _map; i < _begin.map_node; ++i){
+                    if (_map_size > 8){
+                        _get_al().deallocate(*i, block_size);
+                        _get_map_al().deallocate(i, 1);
+                        ++_map;
+                        --_map_size;
+                    }
+                }
+
+                for (auto j = _map + _map_size; j > _end.map_node; --j){
+                    if (_map_size > 8){
+                        _get_al().deallocate(*j, block_size);
+                        _get_map_al().deallocate(j, 1);
+                        --_map_size;
+                    }
+                }
             }
 
         public:
