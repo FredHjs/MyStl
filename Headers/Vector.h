@@ -2,7 +2,6 @@
 #define MYSTL_VECTOR_H
 
 #include <memory>
-#include <utility>
 #include <assert.h>
 #include <stdexcept>
 #include <cstring>
