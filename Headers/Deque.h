@@ -431,6 +431,23 @@ namespace MyStl
                 }
             }
 
+            template<class... Args> void emplace_front(Args&&... args){
+                if (_begin.cur == _begin.first){
+                    add_block_front(1);
+                }
+                try{
+                    _get_al().construct((--_begin).cur, std::forward<Args>(args)...);
+                }catch(...){
+                    ++_begin;
+                    throw;
+                }
+            }
+
+            template<typename...Args>
+            iterator emplace(const_iterator pos, Args&&...args){
+
+            }
+
         private:
             /* helpers */
             void init_map_n(size_type num_elem){
@@ -512,6 +529,58 @@ namespace MyStl
                     _get_map_al().deallocate(_map, _map_size);
                     _map = nullptr;
                 }
+            }
+
+            void add_block_front(size_type num_blk_require){      
+                if (_begin.map_node - _map >= num_blk_require){   // if the number of map nodes are greater than or equal to n
+                    decltype(_map) cur = _begin.map_node - num_blk_require;
+                    try{
+                        for (; cur != _begin.map_node; ++cur){
+                            *cur = _get_map_al().allocate(block_size);
+                        }
+                    }catch(...){
+                        for (; cur != _begin.map_node - num_blk_require - 1; --cur){
+                            _get_map_al().deallocate(*(cur - 1), block_size);
+                        }
+                    }
+                }else{
+                    map_resize(num_blk_require, true);
+                }
+            }
+
+            void map_resize(size_type num_new_blocks, bool front){
+                auto new_map_size = MyStl::max(_map_size * 2, _map_size + num_new_blocks);
+                decltype(_map) new_map = _get_map_al().allocate(new_map_size);
+                decltype(_map) new_beg, new_end;
+
+                if (front){
+                    //keep the # of blocks at the back unchanged
+                    size_t block_at_back = ((_map + _map_size) - _end.map_node) - 1;
+                    new_end = new_map + (new_map_size - block_at_back);
+                    new_beg = new_end - _map_size;
+                    create_blocks_n(new_beg, _map_size);
+                    for (auto cur_new = new_beg, cur_original = _begin.map_node; 
+                         cur_original != _end.map_node; 
+                         ++cur_new, ++cur_original){
+                             *cur_new = cur_original;
+                    }
+                }else{
+                    size_t block_at_front = _begin.map_node - _map;
+                    new_beg = new_map + block_at_front;
+                    new_end = new_beg + _map_size;
+                    create_blocks_n(new_beg, _map_size);
+                    for (auto cur_new = new_beg, cur_original = _begin.map_node; 
+                         cur_original != _end.map_node; 
+                         ++cur_new, ++cur_original){
+                             *cur_new = cur_original;
+                    }
+                }
+
+                _get_map_al().deallocate(_map, _map_size);
+                _map = new_map;
+                _map_size = new_map_size;
+                _begin = iterator(new_beg, *new_beg + (_begin.cur - _begin.first));
+                _end = iterator(new_end - 1, *(new_end - 1) + _end.cur - _end.map_node);
             }
     };
 } // namespace MyStl
