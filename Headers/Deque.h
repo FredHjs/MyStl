@@ -443,6 +443,18 @@ namespace MyStl
                 }
             }
 
+            template<class... Args> void emplace_back(Args&&... args){
+                if (_end.cur == _end.last - 1){
+                    add_block_back(1);
+                }
+                try{
+                    _get_al().construct((++_end).cur, std::forward<Args>(args)...);
+                }catch(...){
+                    --_end;
+                    throw;
+                }
+            }
+
             template<typename...Args>
             iterator emplace(const_iterator pos, Args&&...args){
 
@@ -545,6 +557,23 @@ namespace MyStl
                     }
                 }else{
                     map_resize(num_blk_require, true);
+                }
+            }
+
+            void add_block_back(size_type num_blk_require){
+                if (_map_size - (_end.map_node - _map) - 1 >= num_blk_require){
+                    decltype(_map) cur = _end.map_node + 1;
+                    try{
+                        for (size_t i = 0; i < num_blk_require; ++i, ++cur){
+                            *cur = _get_map_al().allocate(block_size);
+                        }
+                    }catch(...){
+                        for (; cur != _end.map_node; --cur){
+                            _get_map_al().deallocate(*(cur - 1), block_size);
+                        }
+                    }
+                }else{
+                    map_resize(num_blk_require, false);
                 }
             }
 
