@@ -24,7 +24,7 @@ namespace MyStl
 
         private:
             map_ptr map_node;
-            value_ptr cur;
+            value_ptr cur;      //in the _end iterator, cur is pass-the-end pointer
             value_ptr first;
             value_ptr last;
 
@@ -448,7 +448,7 @@ namespace MyStl
                     add_block_back(1);
                 }
                 try{
-                    _get_al().construct((++_end).cur, std::forward<Args>(args)...);
+                    _get_al().construct((_end++).cur, std::forward<Args>(args)...);
                 }catch(...){
                     --_end;
                     throw;
@@ -457,14 +457,121 @@ namespace MyStl
 
             template<typename...Args>
             iterator emplace(const_iterator pos, Args&&...args){
+                assert(_begin <= pos && pos < _end);
+                if (pos.cur == _begin.cur) emplace_front(std::forward(args)...);
+                else if (pos.cur == _end.cur) emplace_back(std::forward(args)...);
+                else{
+                    size_type elem_before = pos - _begin, elem_after = _end - pos;
+                    if (size() - elem_before >= elem_after){    //pos in the first half
+                        if (_begin.cur == _begin.first){
+                            add_block_front(1);
+                        }
+                        MyStl::copy(_begin, pos, _begin - 1);
+                        *pos = value_type(std::forward(args)...);
+                        --_begin;
+                    }else{   //pos in the second half
+                        if (_end.cur == _end.last - 1){
+                            add_block_back(1); 
+                        }
+                        MyStl::copy_backward(pos, _end, _end + 1);
+                        *pos = value_type(std::forward(args)...);
+                        ++_end;
+                    }
+                }
 
+                return const_cast<iterator>(pos);
             }
+
+            iterator erase(const_iterator pos){
+                assert(_begin <= pos && pos < _end);
+                if (pos.cur == _begin.cur){
+                    MyStl::destroy(_begin.cur);
+                    ++_begin;
+                }
+                else if (pos.cur == (_end - 1).cur){
+                    MyStl::destroy((_end - 1).cur);
+                    --_end;
+                }
+                else{
+                    size_type elem_before = pos - _begin, elem_after = _end - pos;
+                    auto next = pos + 1;
+                    if (size() - elem_before >= elem_after){    //pos in the first half
+                        MyStl::copy_backward(_begin, pos, next);
+                        MyStl::destroy(_begin.cur);
+                        ++_begin;
+                    }else{   //pos in the second half
+                        MyStl::copy(pos + 1, _end, pos);
+                        MyStl::destroy((_end - 1).cur);
+                        --_end;
+                    }
+                }
+
+                return const_cast<iterator>(pos);
+            }
+
+            iterator erase(const_iterator first, const_iterator last){
+                assert(first >= _begin && last <= _end);
+                if (first == _begin && last == _end){
+                    clear();
+                    return _end;
+                }
+                size_type element_before = first - _begin, element_after = last - _end, element_erased = last - first;
+                if (element_before <= element_after){   //less element at front to be copied
+                    auto original_begin = _begin;
+                    MyStl::copy_backward(_begin, first, last);
+                    _begin = _begin + element_erased
+                    destroy_range(original_begin.cur, _begin.cur);
+                }else{
+                    auto original_end = _end;
+                    MyStl::copy(last, _end, first);
+                    _end = _end - element_erased;
+                    destroy_range(_end, original_end);
+                }
+
+                return _begin + element_before;
+            }
+
+            void push_back(const T& value){
+                emplace_back(value);
+            }
+
+            void push_back(T&& value){
+                emplace_back(std::move(value));
+            }
+
+            void push_front(const T& value){
+                emplace_front(value);
+            }
+
+            void push_front(T&& value){
+                emplace_front(std::move(value));
+            }
+
+            void pop_back(){
+                --_end;
+                MyStl::destroy(_end.cur);
+
+                if (_end.cur == _end.last - 1){ //last block is totally empty after deletion
+                    _get_map_al().deallocate(*(_end.map_node + 1), block_size);
+                    *(_end.map_node + 1) = nullptr;
+                }
+            }
+
+            void pop_front(){
+                MyStl::destroy(_begin.cur);
+                ++_begin;
+
+                if (_begin.cur == _begin.first){    //first block totally empty after deletion
+                    _get_map_al().deallocate(*(_begin.map_node - 1), block_size);
+                    *(_begin.map_node - 1) = nullptr;
+                }
+            }
+
 
         private:
             /* helpers */
             void init_map_n(size_type num_elem){
-                size_type num_block = (num_elem % block_size) ? (num_elem / block_size + 1) 
-                                                                : (num_elem / block_size);
+                size_type num_block = (num_elem / block_size) + 1;
                 size_type map_size = MyStl::max(num_block + 2, 8);
 
                 try{
@@ -485,16 +592,16 @@ namespace MyStl
                 }
                 
                 _begin.change_node_to(block_begin);
-                _end.change_node_to(block_begin + num_block);
+                _end.change_node_to(block_begin + num_block - 1);
                 _begin.cur = _begin.first;
-                _end.cur = _end.first + num_elem % block_size;
+                _end.cur = _end.first + (num_elem % block_size);
             }
 
             void create_blocks_n(map_ptr begin, size_type n){
                 auto cur = begin;
 
                 try{
-                    for (size_type i = 0; i <= n; ++i, ++cur){
+                    for (size_type i = 0; i < n; ++i, ++cur){
                         *(begin + i) = _get_al().allocate(block_size);
                     }
                 }catch(...){
