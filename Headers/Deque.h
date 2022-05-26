@@ -458,10 +458,11 @@ namespace MyStl
             template<typename...Args>
             iterator emplace(const_iterator pos, Args&&...args){
                 assert(_begin <= pos && pos < _end);
+
+                size_type elem_before = pos - _begin, elem_after = _end - pos;
                 if (pos.cur == _begin.cur) emplace_front(std::forward(args)...);
                 else if (pos.cur == _end.cur) emplace_back(std::forward(args)...);
                 else{
-                    size_type elem_before = pos - _begin, elem_after = _end - pos;
                     if (size() - elem_before >= elem_after){    //pos in the first half
                         if (_begin.cur == _begin.first){
                             add_block_front(1);
@@ -479,11 +480,13 @@ namespace MyStl
                     }
                 }
 
-                return const_cast<iterator>(pos);
+                return _begin + elem_before;
             }
 
             iterator erase(const_iterator pos){
                 assert(_begin <= pos && pos < _end);
+                
+                size_type elem_before = pos - _begin, elem_after = _end - pos;
                 if (pos.cur == _begin.cur){
                     MyStl::destroy(_begin.cur);
                     ++_begin;
@@ -493,7 +496,6 @@ namespace MyStl
                     --_end;
                 }
                 else{
-                    size_type elem_before = pos - _begin, elem_after = _end - pos;
                     auto next = pos + 1;
                     if (size() - elem_before >= elem_after){    //pos in the first half
                         MyStl::copy_backward(_begin, pos, next);
@@ -506,7 +508,7 @@ namespace MyStl
                     }
                 }
 
-                return const_cast<iterator>(pos);
+                return _begin + elem_before;
             }
 
             iterator erase(const_iterator first, const_iterator last){
@@ -548,6 +550,8 @@ namespace MyStl
             }
 
             void pop_back(){
+                assert(!empty());
+
                 --_end;
                 MyStl::destroy(_end.cur);
 
@@ -558,12 +562,48 @@ namespace MyStl
             }
 
             void pop_front(){
+                assert(!empty());
+
                 MyStl::destroy(_begin.cur);
                 ++_begin;
 
                 if (_begin.cur == _begin.first){    //first block totally empty after deletion
                     _get_map_al().deallocate(*(_begin.map_node - 1), block_size);
                     *(_begin.map_node - 1) = nullptr;
+                }
+            }
+
+            iterator insert(const_iterator pos, const T& value){
+                assert(pos >= _begin && pos <= _end);
+
+                size_type elem_before = pos - _begin, elem_after = _end - pos;
+                if (pos.cur == _begin.cur){
+                    push_front(value);
+                    return _begin;
+                }else if (pos.cur == _end.cur){
+                    push_back(value);
+                    return (_end - 1);
+                }else{
+                    iterator pos_;
+                    if (size() - elem_before >= elem_after){    //pos in the first half
+                        if (_begin.cur == _begin.first){
+                            add_block_front(1);
+                        }
+                        pos_ = _begin + elem_before;
+                        MyStl::copy(_begin, pos_, _begin - 1);
+                        *pos_ = value;
+                        --_begin;
+                    }else{   //pos in the second half
+                        if (_end.cur == _end.last - 1){
+                            add_block_back(1);
+                        }
+                        pos_ = _begin + elem_before;
+                        MyStl::copy_backward(pos_, _end, _end + 1);
+                        *pos_ = value;
+                        ++_end;
+                    }
+
+                    return pos_;
                 }
             }
 
