@@ -1,3 +1,4 @@
 /.vscode
 *.exe
 /Headers/test.cpp
+/Tests/test.cpp
