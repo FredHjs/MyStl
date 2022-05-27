@@ -28,6 +28,11 @@ template <typename T, typename F>
 const T& min(const T& op_1, const T& op_2, F& pred){return pred(op_1, op_2) ? op_1 : op_2;}
 
 template<typename ForwardIt, typename T>
+void uninitialized_fill(ForwardIt first, ForwardIt last, const T& value){
+    uninitialized_fill_unchecked(first, last, value, std::is_trivially_copy_constructible<T>{});
+}
+
+template<typename ForwardIt, typename T>
 void uninitialized_fill_unchecked(ForwardIt first, ForwardIt last, const T& value, std::true_type){
     fill(first, last, value);
 }
@@ -41,14 +46,33 @@ void uninitialized_fill_unchecked(ForwardIt first, ForwardIt last, const T& valu
         }
     }catch(...){
         for (; first != cur; ++first){
-            destroy(&*cur);
+            destroy(&*first);
         }
     }
 }
 
-template<typename ForwardIt, typename T>
-void uninitialized_fill(ForwardIt first, ForwardIt last, const T& value){
-    uninitialized_fill_unchecked(first, last, value, std::is_trivially_copy_constructible<T>{});
+template<class InputIt, class ForwardIt>
+ForwardIt uninitialized_copy(InputIt first, InputIt last, ForwardIt d_first){
+    return uninitialized_copy_unchecked(first, last, d_first, std::is_trivially_copy_assignable<typename Iterator_Traits<InputIt>::value_type>{});
+}
+
+template <typename InputIt, typename ForwardIt>
+ForwardIt uninitialized_copy_unchecked(InputIt first, InputIt last, ForwardIt d_first, std::true_type){
+    copy(first, last, d_first);
+}
+
+template <typename InputIt, typename ForwardIt>
+ForwardIt uninitialized_copy_unchecked(InputIt first, InputIt last, ForwardIt d_first, std::false_type){
+    auto cur = d_first;
+    try{
+        for (; cur != last; ++cur, ++first){
+            ::new((void*) &*cur) (*first);
+        }
+    }catch(...){
+        for (; d_first != cur; ++d_first){
+            destroy(&*d_first);
+        }
+    }
 }
 
 template<typename T>
