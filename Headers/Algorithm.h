@@ -58,7 +58,7 @@ ForwardIt uninitialized_copy(InputIt first, InputIt last, ForwardIt d_first){
 
 template <typename InputIt, typename ForwardIt>
 ForwardIt uninitialized_copy_unchecked(InputIt first, InputIt last, ForwardIt d_first, std::true_type){
-    copy(first, last, d_first);
+    return copy(first, last, d_first);
 }
 
 template <typename InputIt, typename ForwardIt>
@@ -73,6 +73,7 @@ ForwardIt uninitialized_copy_unchecked(InputIt first, InputIt last, ForwardIt d_
             destroy(&*d_first);
         }
     }
+    return cur;
 }
 
 template<typename T>
@@ -99,7 +100,7 @@ OutputIt copy(InputIt first, InputIt last, OutputIt d_first){
         *(d_first++) = *(first++);
     }
 
-    return first;
+    return d_first;
 }
 
 template<class BidirIt1, class BidirIt2>
