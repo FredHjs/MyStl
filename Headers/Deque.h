@@ -202,7 +202,7 @@ namespace MyStl
         public:
             /* ctor and dtor */
             Deque(){
-                init_map_n(0);
+                fill_init_n(0, value_type());
             }
 
             Deque(size_type count, const T& value){
@@ -576,7 +576,7 @@ namespace MyStl
             iterator insert(const_iterator pos, const T& value){
                 assert(pos >= _begin && pos <= _end);
 
-                size_type elem_before = pos - _begin, elem_after = _end - pos;
+                size_type elem_before = pos - _begin;
                 if (pos.cur == _begin.cur){
                     push_front(value);
                     return _begin;
@@ -585,9 +585,10 @@ namespace MyStl
                     return (_end - 1);
                 }else{
                     iterator pos_;
-                    if (size() - elem_before >= elem_after){    //pos in the first half
+                    if (size() - elem_before <= size() / 2){    //pos in the first half
                         if (_begin.cur == _begin.first){
-                            add_block_front(1);
+                            emplace_front(value);
+                            ++_begin;
                         }
                         pos_ = _begin + elem_before;
                         MyStl::copy(_begin, pos_, _begin - 1);
@@ -595,7 +596,8 @@ namespace MyStl
                         --_begin;
                     }else{   //pos in the second half
                         if (_end.cur == _end.last - 1){
-                            add_block_back(1);
+                            emplace_back(value);
+                            --_end;
                         }
                         pos_ = _begin + elem_before;
                         MyStl::copy_backward(pos_, _end, _end + 1);
@@ -605,6 +607,88 @@ namespace MyStl
 
                     return pos_;
                 }
+            }
+
+            iterator insert(const_iterator pos, T&& value){
+                assert(pos >= _begin && pos <= _end);
+
+                size_type elem_before = pos - _begin;
+                if (pos.cur == _begin.cur){
+                    push_front(value);
+                    return _begin;
+                }else if (pos.cur == _end.cur){
+                    push_back(value);
+                    return (_end - 1);
+                }else{
+                    iterator pos_;
+                    if (elem_before <= size() / 2){    //pos in the first half
+                        if (_begin.cur == _begin.first){
+                            emplace_front(value);
+                            ++_begin;
+                        }
+                        pos_ = _begin + elem_before;
+                        MyStl::copy(_begin, pos_, _begin - 1);
+                        *pos_ = std::move(value);
+                        --_begin;
+                    }else{   //pos in the second half
+                        if (_end.cur == _end.last - 1){
+                            emplace_back(value);
+                            --_end;
+                        }
+                        pos_ = _begin + elem_before;
+                        MyStl::copy_backward(pos_, _end, _end + 1);
+                        *pos_ = std::move(value);
+                        ++_end;
+                    }
+
+                    return pos_;
+                }
+            }
+
+            iterator insert(const_iterator pos, size_type count, const T& value){
+                assert(pos >= _begin && pos <= _end);
+
+                size_type elem_before = pos - _begin, elem_after = _end - pos;
+                if (elem_before <= elem_after){  //less than half elements needs to be copied at front
+                    if (_begin.cur - _begin.first < count){
+                        size_type num_extra_elems = count - (_begin.cur - _begin.first);
+                        add_block_front(num_extra_elems % block_size ? num_extra_elems / block_size + 1 : num_extra_elems / block_size);
+                    }
+
+                    auto _pos = _begin + elem_before;
+
+                    if (elem_before >= count){  //overlap
+                        MyStl::uninitialized_copy(_begin, _begin + n, _begin - n);
+                        MyStl::copy(_begin + n, _pos, _begin);
+                        MyStl::fill(_pos - n, _pos, value);
+                        _begin -= count;
+                    }else{
+                        auto fill_start_iter = MyStl::uninitialized_copy(_begin, _pos, _begin - count);
+                        MyStl::uninitialized_fill(fill_start_iter, _begin, value);
+                        MyStl::fill(_begin, _pos, value);
+                        _begin -= count;
+                    }
+                }else{
+                    if (_end.last - _end.cur - 1 < count){
+                        size_type num_extra_elems = count - (_end.last - _end.cur - 1);
+                        add_block_back(num_extra_elems / block_size + 1);
+                    }
+
+                    auto _pos = _end - elem_after;
+                    
+                    if (elem_after >= count){
+                        MyStl::uninitialized_copy(_end - count, _end, _end);
+                        MyStl::copy_backward(_pos, _end - count, _end);
+                        MyStl::fill(_pos, _pos + count, value);
+                        _end += count;
+                    }else{
+                        MyStl::uninitialized_copy(_pos, _end, _pos + count);
+                        MyStl::fill(_pos, _end, value);
+                        MyStl::uninitialized_fill(_end, _pos + count, value);
+                    }
+                }
+                
+                return _begin + elem_before;
             }
 
 
