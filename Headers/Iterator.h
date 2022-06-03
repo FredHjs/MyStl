@@ -90,6 +90,60 @@ namespace MyStl{
     template<typename Iter>
     struct Is_Random_Access_Iterator : Is_Of_Category<Iter, Random_Access_Iterator_Tag>{};
 
+    template<typename InputIter>
+    typename Iterator_Traits<InputIter>::difference_type
+    distance(InputIter first, InputIter last){
+        return distance_unchecked(first, last, typename Iterator_Traits<InputIter>::iterator_category());
+    }
+
+    template<typename InputIter>
+    typename Iterator_Traits<InputIter>::difference_type
+    distance_unchecked(InputIter first, InputIter last, Input_Iterator_Tag){
+        typename Iterator_Traits<InputIter>::difference_type distance = 0;
+        while(first != last){
+            ++first;
+            ++distance;
+        }
+
+        return distance;
+    }
+
+    template<typename RandomAccessIter>
+    typename Iterator_Traits<RandomAccessIter>::difference_type
+    distance_unchecked(RandomAccessIter first, RandomAccessIter last, Random_Access_Iterator_Tag){
+        return last - first;
+    }
+
+    template<typename InputIter, typename Distance>
+    void advance(InputIter& iter, Distance distance){
+        advance_unchecked(iter, distance, typename Iterator_Traits<InputIter>::iterator_category());
+    }
+
+    template<typename InputIter, typename Distance>
+    void advance_unchecked(InputIter& iter, Distance distance, Input_Iterator_Tag){
+        while(distance > 0){
+            ++iter;
+            --distance;
+        } 
+    }
+
+    template<typename BidirectionalIter, typename Distance>
+    void advance_unchecked(BidirectionalIter& iter, Distance distance, Bidirectional_Iterator_Tag){
+        if (distance > 0){
+            while(distance--){
+                ++iter;
+            }
+        }else{
+            while(distance++){
+                --iter;
+            }
+        }
+    }
+
+    template<typename RandomAccessIter, typename Distance>
+    void advance_unchecked(RandomAccessIter& iter, Distance distance, Random_Access_Iterator_Tag){
+        iter += distance;
+    }
 
     /* reverse iterator */
     template <typename Iter>
