@@ -658,9 +658,9 @@ namespace MyStl
                     auto _pos = _begin + elem_before;
 
                     if (elem_before >= count){  //overlap
-                        MyStl::uninitialized_copy(_begin, _begin + n, _begin - n);
-                        MyStl::copy(_begin + n, _pos, _begin);
-                        MyStl::fill(_pos - n, _pos, value);
+                        MyStl::uninitialized_copy(_begin, _begin + count, _begin - count);
+                        MyStl::copy(_begin + count, _pos, _begin);
+                        MyStl::fill(_pos - count, _pos, value);
                         _begin -= count;
                     }else{
                         auto fill_start_iter = MyStl::uninitialized_copy(_begin, _pos, _begin - count);
@@ -691,9 +691,84 @@ namespace MyStl
                 return _begin + elem_before;
             }
 
+            template<class InputIt, typename std::enable_if<MyStl::Is_Input_Iterator<InputIt>::value, bool>::type = true>
+            iterator insert(const_iterator pos, InputIt first, InputIt last){
+                assert(pos >= _begin && pos <= _end);
+
+                return insert_unchecked(pos, first, last, typename Iterator_Traits<InputIt>::iterator_category());
+            }
+
+            iterator insert(const_iterator pos, std::initializer_list<T> ilist){
+                return insert(pos, ilist.begin(), ilist.end());
+            }
+
 
         private:
             /* helpers */
+            template<class InputIt>
+            iterator insert_unchecked(const_iterator pos, InputIt first, InputIt last, MyStl::Input_Iterator_Tag){  //input iterator only allows one pass of its container
+                size_type elem_before = pos - _begin, original_elem_before = elem_before;
+                while (first != last){
+                    auto _pos = _begin + elem_before;
+                    insert(_pos, *first);
+                    ++elem_before;
+                }
+
+                return _begin + original_elem_before;
+            }
+
+            template<class ForwardIt>
+            iterator insert_unchecked(const_iterator pos, ForwardIt first, ForwardIt last, MyStl::Forward_Iterator_Tag){
+                auto count = distance(first, last);
+
+                size_type elem_before = pos - _begin, elem_after = _end - pos;
+                if (elem_before <= elem_after){  //less than half elements needs to be copied at front
+                    if (_begin.cur - _begin.first < count){
+                        size_type num_extra_elems = count - (_begin.cur - _begin.first);
+                        add_block_front(num_extra_elems % block_size ? num_extra_elems / block_size + 1 : num_extra_elems / block_size);
+                    }
+
+                    auto _pos = _begin + elem_before;
+
+                    if (elem_before >= count){  //overlap
+                        MyStl::uninitialized_copy(_begin, _begin + count, _begin - count);
+                        auto copy_start = MyStl::copy(_begin + count, _pos, _begin);
+                        MyStl::copy(first, last, copy_start);
+                        _begin -= count;
+                    }else{
+                        auto mid = first;
+                        advance(mid, count - elem_before);
+                        auto copy_start = MyStl::uninitialized_copy(_begin, _pos, _begin - count);
+                        MyStl::uninitialized_copy(first, mid, copy_start);
+                        MyStl::copy(mid, last, _begin);
+                        _begin -= count;
+                    }
+                }else{
+                    if (_end.last - _end.cur - 1 < count){
+                        size_type num_extra_elems = count - (_end.last - _end.cur - 1);
+                        add_block_back(num_extra_elems / block_size + 1);
+                    }
+
+                    auto _pos = _end - elem_after;
+                    
+                    if (elem_after >= count){
+                        MyStl::uninitialized_copy(_end - count, _end, _end);
+                        MyStl::copy_backward(_pos, _end - count, _end);
+                        MyStl::copy(first, last, _pos);
+                        _end += count;
+                    }else{
+                        auto mid = first;
+                        advance(mid, count - elem_after);
+                        auto copy_start = MyStl::uninitialized_copy(mid, last, _end);
+                        MyStl::uninitialized_copy(_pos, _end, copy_start);
+                        MyStl::copy(first, mid, _pos);
+                        _end += count;
+                    }
+                }
+                
+                return _begin + elem_before;
+            }
+
             void init_map_n(size_type num_elem){
                 size_type num_block = (num_elem / block_size) + 1;
                 size_type map_size = MyStl::max(num_block + 2, 8);
