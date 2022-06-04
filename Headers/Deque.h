@@ -8,6 +8,8 @@
 #include "Iterator.h"
 #include "Algorithm.h"
 
+#define DEQUE_INITIAL_MINIMUN_MAP_SIZE 8
+
 namespace MyStl
 {
     template <typename T> class Deque;
@@ -20,6 +22,10 @@ namespace MyStl
             using map_ptr = T**;
             using value_ptr = T*;
             using size_type = std::size_t;
+            
+            using reference = Reference;
+            using pointer = Pointer;
+            using difference_type = ptrdiff_t;
             static constexpr size_type block_size = sizeof(T) < 512 ? 512/sizeof(T) : 1;
 
         private:
@@ -73,10 +79,11 @@ namespace MyStl
                     change_node_by(1);
                     cur = first;
                 }
+                return *this;
             }
 
-            Deque_Iterator& operator++(int){
-                auto temp = *this;
+            Deque_Iterator operator++(int){
+                Deque_Iterator temp = *this;
                 ++(*this);
                 return temp;
             }
@@ -87,10 +94,11 @@ namespace MyStl
                     cur = last;
                 }
                 --cur;
+                return *this;
             }
 
-            Deque_Iterator& operator--(int){
-                auto temp = *this;
+            Deque_Iterator operator--(int){
+                Deque_Iterator temp = *this;
                 --(*this);
                 return temp;
             }
@@ -174,8 +182,8 @@ namespace MyStl
             using difference_type = std::ptrdiff_t;
             using reference = value_type&;
             using const_reference = const value_type&;
-            using pointer = allocator_type::pointer;
-            using const_pointer = allocator_type::const_pointer;
+            using pointer = typename allocator_type::pointer;
+            using const_pointer = typename allocator_type::const_pointer;
             using iterator = Deque_Iterator<value_type, value_type&, value_type*>;
             using const_iterator = Deque_Iterator<value_type, const value_type&, const value_type*>;
             using reverse_iterator = Reverse_Iterator<iterator>;
@@ -184,7 +192,7 @@ namespace MyStl
             using map_ptr = pointer*;
             using map_allocator = std::allocator<pointer>;
 
-            static constexpr size_type block_size = sizeof(T) < 512 ? 512/sizeof(T) : 1;
+            const size_type block_size = sizeof(T) < 512 ? 512/sizeof(T) : 1;
 
             allocator_type _get_al(){return allocator_type();}
             
@@ -387,7 +395,7 @@ namespace MyStl
 
             void shrink_to_fit(){
                 for (auto i = _map; i < _begin.map_node; ++i){
-                    if (_map_size > 8){
+                    if (_map_size > static_cast<size_type>(DEQUE_INITIAL_MINIMUN_MAP_SIZE)){
                         _get_al().deallocate(*i, block_size);
                         _get_map_al().deallocate(i, 1);
                         ++_map;
@@ -396,7 +404,7 @@ namespace MyStl
                 }
 
                 for (auto j = _map + _map_size; j > _end.map_node; --j){
-                    if (_map_size > 8){
+                    if (_map_size > static_cast<size_type>(DEQUE_INITIAL_MINIMUN_MAP_SIZE)){
                         _get_al().deallocate(*j, block_size);
                         _get_map_al().deallocate(j, 1);
                         --_map_size;
@@ -521,7 +529,7 @@ namespace MyStl
                 if (element_before <= element_after){   //less element at front to be copied
                     auto original_begin = _begin;
                     MyStl::copy_backward(_begin, first, last);
-                    _begin = _begin + element_erased
+                    _begin = _begin + element_erased;
                     destroy_range(original_begin.cur, _begin.cur);
                 }else{
                     auto original_end = _end;
@@ -771,21 +779,21 @@ namespace MyStl
 
             void init_map_n(size_type num_elem){
                 size_type num_block = (num_elem / block_size) + 1;
-                size_type map_size = MyStl::max(num_block + 2, 8);
+                _map_size = MyStl::max(num_block + 2, static_cast<size_type>(DEQUE_INITIAL_MINIMUN_MAP_SIZE));
 
                 try{
-                    _map = _get_map_al().allocate(map_size);
+                    _map = _get_map_al().allocate(_map_size);
                 }catch(...){
                     _map = nullptr;
                     throw;
                 }
 
-                map_ptr block_begin = _map + (map_size - num_block) / 2;
+                map_ptr block_begin = _map + (_map_size - num_block) / 2;
 
                 try{
                     create_blocks_n(block_begin, num_block);
                 }catch(...){
-                    _get_map_al().deallocate(_map, map_size);
+                    _get_map_al().deallocate(_map, _map_size);
                     _map = nullptr;
                     throw;
                 }
@@ -871,11 +879,11 @@ namespace MyStl
                     decltype(_map) cur = _end.map_node + 1;
                     try{
                         for (size_t i = 0; i < num_blk_require; ++i, ++cur){
-                            *cur = _get_map_al().allocate(block_size);
+                            *cur = _get_al().allocate(block_size);
                         }
                     }catch(...){
                         for (; cur != _end.map_node; --cur){
-                            _get_map_al().deallocate(*(cur - 1), block_size);
+                            _get_al().deallocate(*(cur - 1), block_size);
                         }
                     }
                 }else{
@@ -897,7 +905,7 @@ namespace MyStl
                     for (auto cur_new = new_beg, cur_original = _begin.map_node; 
                          cur_original != _end.map_node; 
                          ++cur_new, ++cur_original){
-                             *cur_new = cur_original;
+                             *cur_new = *cur_original;
                     }
                 }else{
                     size_t block_at_front = _begin.map_node - _map;
@@ -907,7 +915,7 @@ namespace MyStl
                     for (auto cur_new = new_beg, cur_original = _begin.map_node; 
                          cur_original != _end.map_node; 
                          ++cur_new, ++cur_original){
-                             *cur_new = cur_original;
+                             *cur_new = *cur_original;
                     }
                 }
 
@@ -915,7 +923,7 @@ namespace MyStl
                 _map = new_map;
                 _map_size = new_map_size;
                 _begin = iterator(new_beg, *new_beg + (_begin.cur - _begin.first));
-                _end = iterator(new_end - 1, *(new_end - 1) + _end.cur - _end.map_node);
+                _end = iterator(new_end - 1, *(new_end - 1) + (_end.cur - _end.first));
             }
     };
 } // namespace MyStl
