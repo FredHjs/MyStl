@@ -15,7 +15,7 @@ namespace MyStl
     template <typename T> class Deque;
 
     template<typename T, typename Reference, typename Pointer>
-    class Deque_Iterator: Iterator<Random_Access_Iterator_Tag, T, ptrdiff_t, Pointer, Reference>{
+    class Deque_Iterator: public Iterator<Random_Access_Iterator_Tag, T, ptrdiff_t, Pointer, Reference>{
         friend class Deque<T>;
         
         public:
@@ -139,23 +139,23 @@ namespace MyStl
                 return temp.operator+=(-n);
             }
 
-            difference_type operator-(Deque_Iterator& rhs){
+            difference_type operator-(const Deque_Iterator& rhs) const {
                 return (cur - first) + (map_node - (rhs.map_node + 1)) * block_size + (rhs.last - rhs.cur);
             }
 
-            bool operator==(const Deque_Iterator& rhs){return this->cur == rhs.cur;}
+            bool operator==(const Deque_Iterator& rhs) const {return this->cur == rhs.cur;}
 
-            bool operator!=(const Deque_Iterator& rhs){return this->cur != rhs.cur;}
+            bool operator!=(const Deque_Iterator& rhs) const {return this->cur != rhs.cur;}
 
-            bool operator<(const Deque_Iterator& rhs){
+            bool operator<(const Deque_Iterator& rhs) const {
                 return map_node == rhs.map_node ? cur < rhs.cur : map_node < rhs.map_node;
             }
 
-            bool operator>=(const Deque_Iterator& rhs){return !(*this < rhs);}
+            bool operator>=(const Deque_Iterator& rhs) const {return !(*this < rhs);}
 
-            bool operator>(const Deque_Iterator& rhs){return rhs < *this;}
+            bool operator>(const Deque_Iterator& rhs) const {return rhs < *this;}
 
-            bool operator<=(const Deque_Iterator& rhs){return !(rhs < *this);}
+            bool operator<=(const Deque_Iterator& rhs) const {return !(rhs < *this);}
 
 
         private:
@@ -491,7 +491,7 @@ namespace MyStl
                 return _begin + elem_before;
             }
 
-            iterator erase(const_iterator pos){
+            iterator erase(iterator pos){
                 assert(_begin <= pos && pos < _end);
                 
                 size_type elem_before = pos - _begin, elem_after = _end - pos;
@@ -519,7 +519,7 @@ namespace MyStl
                 return _begin + elem_before;
             }
 
-            iterator erase(const_iterator first, const_iterator last){
+            iterator erase(iterator first, iterator last){
                 assert(first >= _begin && last <= _end);
                 if (first == _begin && last == _end){
                     clear();
@@ -535,7 +535,7 @@ namespace MyStl
                     auto original_end = _end;
                     MyStl::copy(last, _end, first);
                     _end = _end - element_erased;
-                    destroy_range(_end, original_end);
+                    destroy_range(_end.cur, original_end.cur);
                 }
 
                 return _begin + element_before;
@@ -564,7 +564,7 @@ namespace MyStl
                 MyStl::destroy(_end.cur);
 
                 if (_end.cur == _end.last - 1){ //last block is totally empty after deletion
-                    _get_map_al().deallocate(*(_end.map_node + 1), block_size);
+                    _get_al().deallocate(*(_end.map_node + 1), block_size);
                     *(_end.map_node + 1) = nullptr;
                 }
             }
@@ -576,12 +576,12 @@ namespace MyStl
                 ++_begin;
 
                 if (_begin.cur == _begin.first){    //first block totally empty after deletion
-                    _get_map_al().deallocate(*(_begin.map_node - 1), block_size);
+                    _get_al().deallocate(*(_begin.map_node - 1), block_size);
                     *(_begin.map_node - 1) = nullptr;
                 }
             }
 
-            iterator insert(const_iterator pos, const T& value){
+            iterator insert(iterator pos, const T& value){
                 assert(pos >= _begin && pos <= _end);
 
                 size_type elem_before = pos - _begin;
@@ -617,7 +617,7 @@ namespace MyStl
                 }
             }
 
-            iterator insert(const_iterator pos, T&& value){
+            iterator insert(iterator pos, T&& value){
                 assert(pos >= _begin && pos <= _end);
 
                 size_type elem_before = pos - _begin;
@@ -653,7 +653,7 @@ namespace MyStl
                 }
             }
 
-            iterator insert(const_iterator pos, size_type count, const T& value){
+            iterator insert(iterator pos, size_type count, const T& value){
                 assert(pos >= _begin && pos <= _end);
 
                 size_type elem_before = pos - _begin, elem_after = _end - pos;
@@ -700,13 +700,13 @@ namespace MyStl
             }
 
             template<class InputIt, typename std::enable_if<MyStl::Is_Input_Iterator<InputIt>::value, bool>::type = true>
-            iterator insert(const_iterator pos, InputIt first, InputIt last){
+            iterator insert(iterator pos, InputIt first, InputIt last){
                 assert(pos >= _begin && pos <= _end);
 
                 return insert_unchecked(pos, first, last, typename Iterator_Traits<InputIt>::iterator_category());
             }
 
-            iterator insert(const_iterator pos, std::initializer_list<T> ilist){
+            iterator insert(iterator pos, std::initializer_list<T> ilist){
                 return insert(pos, ilist.begin(), ilist.end());
             }
 
@@ -714,7 +714,7 @@ namespace MyStl
         private:
             /* helpers */
             template<class InputIt>
-            iterator insert_unchecked(const_iterator pos, InputIt first, InputIt last, MyStl::Input_Iterator_Tag){  //input iterator only allows one pass of its container
+            iterator insert_unchecked(iterator pos, InputIt first, InputIt last, MyStl::Input_Iterator_Tag){  //input iterator only allows one pass of its container
                 size_type elem_before = pos - _begin, original_elem_before = elem_before;
                 while (first != last){
                     auto _pos = _begin + elem_before;
@@ -726,8 +726,8 @@ namespace MyStl
             }
 
             template<class ForwardIt>
-            iterator insert_unchecked(const_iterator pos, ForwardIt first, ForwardIt last, MyStl::Forward_Iterator_Tag){
-                auto count = distance(first, last);
+            iterator insert_unchecked(iterator pos, ForwardIt first, ForwardIt last, MyStl::Forward_Iterator_Tag){
+                auto count = MyStl::distance(first, last);
 
                 size_type elem_before = pos - _begin, elem_after = _end - pos;
                 if (elem_before <= elem_after){  //less than half elements needs to be copied at front
@@ -745,7 +745,7 @@ namespace MyStl
                         _begin -= count;
                     }else{
                         auto mid = first;
-                        advance(mid, count - elem_before);
+                        MyStl::advance(mid, count - elem_before);
                         auto copy_start = MyStl::uninitialized_copy(_begin, _pos, _begin - count);
                         MyStl::uninitialized_copy(first, mid, copy_start);
                         MyStl::copy(mid, last, _begin);
@@ -766,7 +766,7 @@ namespace MyStl
                         _end += count;
                     }else{
                         auto mid = first;
-                        advance(mid, count - elem_after);
+                        MyStl::advance(mid, count - elem_after);
                         auto copy_start = MyStl::uninitialized_copy(mid, last, _end);
                         MyStl::uninitialized_copy(_pos, _end, copy_start);
                         MyStl::copy(first, mid, _pos);
@@ -862,11 +862,11 @@ namespace MyStl
                     decltype(_map) cur = _begin.map_node - num_blk_require;
                     try{
                         for (; cur != _begin.map_node; ++cur){
-                            *cur = _get_map_al().allocate(block_size);
+                            *cur = _get_al().allocate(block_size);
                         }
                     }catch(...){
                         for (; cur != _begin.map_node - num_blk_require - 1; --cur){
-                            _get_map_al().deallocate(*(cur - 1), block_size);
+                            _get_al().deallocate(*(cur - 1), block_size);
                         }
                     }
                 }else{
