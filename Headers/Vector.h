@@ -74,7 +74,7 @@ namespace MyStl{
 
                 _begin = alloc.allocate(capa);
 
-                _end = uninitialized_copy(first, last, _begin);
+                _end = MyStl::uninitialized_copy(first, last, _begin);
 
                 cap = _begin + capa;
             }
@@ -92,7 +92,7 @@ namespace MyStl{
             Vector& operator=(const Vector& other){
                 if (&other != this){
                     auto new_beg = alloc.allocate(other.size());
-                    auto new_end = uninitialized_copy(other._begin, other._end, new_beg);
+                    auto new_end = MyStl::uninitialized_copy(other._begin, other._end, new_beg);
                     free();
                     _begin = new_beg;
                     _end = cap = new_end;
@@ -465,37 +465,6 @@ namespace MyStl{
                         alloc.destroy(temp);
                     }
                 }
-            }
-
-            template <typename InputIter, typename FowardIter>
-            FowardIter uninitialized_copy(InputIter beg, InputIter end, FowardIter result){
-                return uninitialized_copy_unchecked(beg, end, result, 
-                            std::is_trivially_copy_assignable<value_type>{});
-            }
-
-            template <typename InputIter, typename FowardIter>
-            FowardIter uninitialized_copy_unchecked(InputIter beg, InputIter end, FowardIter result, std::false_type){
-                FowardIter out = result;
-                try{
-                    for (; beg != end; ++beg, ++out){
-                        alloc.construct(&*out, *beg);
-                    }
-                }catch(...){
-                    for (; out != result; --out){
-                        alloc.destroy(&*out);
-                    }
-                }
-
-                return out;     //returns the iterator after last copied element
-            }
-
-            template <typename InputIter, typename FowardIter>
-            FowardIter uninitialized_copy_unchecked(InputIter beg, InputIter end, FowardIter result, std::true_type){
-                for (; beg != end; ++beg, ++result){
-                    *result = *beg;
-                }
-
-                return result;
             }
 
             template <typename InputIt, typename FowardIt>
