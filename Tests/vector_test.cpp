@@ -16,5 +16,20 @@ int main(){
     Vector<int> v10;
     v8 = v2;
     v9 = std::move(v2);
+    MyStl::Tests::print(v9, "vector_9");
     v10 = {1,2,3,4,5,6,7,8,9};
+
+    std::cout << v7.front() << v7.back() << std::endl;
+    std::cout << v7.at(2) << v7[1] << std::endl;
+
+    v9.insert(v9.begin(), 'b');
+    v9.insert(v9.end(), {'q', 'w', 'e', 'r'});
+    v9.insert(v9.end(), 2, 'z');
+    v9.insert(v9.begin(), 3, 'c');
+    MyStl::Tests::print(v9, "vector_9");
+
+    v7.resize(18, "hello");
+    MyStl::Tests::print(v7, "vector_7");
+
+    return 0;
 }

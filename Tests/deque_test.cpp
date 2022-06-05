@@ -53,5 +53,15 @@ int main(){
     d_6.insert(d_6.end(), s.begin(), s.end());
     d_6.insert(d_6.end(), {")", ")", ")"});
     MyStl::Tests::print(d_6, "deque_6_after_modification");
+
+    MyStl::Deque<int> d_8;
+    for (int i = 0; i < 10; ++i){
+        d_8.push_back(i);
+    }
+    for (int j = -1; j >-10; --j){
+        d_8.push_front(j);
+    }
+    MyStl::Tests::print(d_8, "deque_8");
+    
     return 0;
 }
