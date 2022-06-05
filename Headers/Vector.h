@@ -322,13 +322,13 @@ namespace MyStl{
                 assert(pos >= _begin && pos <= _end);
                 // in case value refers to an element within the container
                 T value_backup(value);
-                emplace(pos, value_backup);
+                return emplace(pos, value_backup);
             }
 
             // T must be move-assignable and move-insertable to use this overload
             iterator insert(const_iterator pos, T&& value){
                 assert(pos >= _begin && pos <= _end);
-                emplace(pos, std::move(value));
+                return emplace(pos, std::move(value));
             }
 
             iterator insert(const_iterator pos, size_type count, const T& value){
@@ -345,27 +345,20 @@ namespace MyStl{
 
                 size_type num_after_pos = _end - insert_pos;
                 if (num_after_pos >= count){
-                    auto new_end = uninitialized_copy(_end - count, _end, _end), ret = insert_pos;
-                    batch_move_backward_unchecked(insert_pos, _end - count, _end);
-                
-                    for (size_type i = 0; i != count; ++i, ++insert_pos){
-                        *insert_pos = value_backup;
-                    }
+                    auto new_end = MyStl::uninitialized_copy(_end - count, _end, _end);
+                    MyStl::copy_backward(insert_pos, _end - count, _end);
+                    MyStl::fill(insert_pos, insert_pos + count, value_backup);
 
                     _end = new_end;
 
-                    return ret;
+                    return insert_pos;
                 }else{
-                    auto new_end = uninitialized_move(insert_pos, _end, insert_pos + count), ret = insert_pos;
-
-                    for (; insert_pos != _end; ++insert_pos){
-                        *insert_pos = value_backup;
-                    }
-                    
-                    uninitialized_fill_n(insert_pos, count - num_after_pos, value_backup);
+                    auto new_end = uninitialized_move(insert_pos, _end, insert_pos + count);
+                    MyStl::fill(insert_pos, _end, value_backup);
+                    MyStl::uninitialized_fill(_end, new_end, value_backup);
 
                     _end = new_end;
-                    return ret;
+                    return insert_pos;
                 }
             }
 
@@ -409,9 +402,9 @@ namespace MyStl{
                     insert_pos = _begin + insert_index;
                 }
 
-                auto new_end = batch_move_backward_unchecked(insert_pos, _end, insert_pos + 1);
+                batch_move_backward_unchecked(insert_pos, _end, _end + 1);
                 *insert_pos = value_type(std::forward<Args>(args)...);
-                _end = new_end;
+                ++_end;
                 return insert_pos; 
             }
 
@@ -551,12 +544,11 @@ namespace MyStl{
             iterator batch_move_backward_unchecked(InputIter first, InputIter last, iterator result){
                 if (first == last) return result;
 
-                iterator ret = result;
                 while(last != first){
                     *(--result) = std::move(*(--last));
                 }
 
-                return ret;  //returns iterator after the last moved element
+                return result;  //returns iterator after the last moved element
             }
 
             void reallocate(size_type reserve_cap){
