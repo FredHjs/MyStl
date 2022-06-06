@@ -926,6 +926,31 @@ namespace MyStl
                 _end = iterator(new_end - 1, *(new_end - 1) + (_end.cur - _end.first));
             }
     };
+    
+    template <typename T>
+    bool operator==(const Deque<T>& lhs, const Deque<T>& rhs){
+        if (lhs.size() != rhs.size()) return false;
+
+        return MyStl::equal(lhs.begin(), lhs.end(), rhs.begin());
+    }
+
+    template<class T>
+    bool operator!=(const MyStl::Deque<T>& lhs, const MyStl::Deque<T>& rhs){return !(lhs == rhs);}
+
+    template<class T>
+    bool operator<(const MyStl::Deque<T>& lhs, const MyStl::Deque<T>& rhs){
+        return MyStl::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+    }
+
+    template<class T>
+    bool operator<=(const MyStl::Deque<T>& lhs, const MyStl::Deque<T>& rhs){return !(rhs < lhs);}
+
+    template<class T>
+    bool operator>(const MyStl::Deque<T>& lhs, const MyStl::Deque<T>& rhs){return rhs < lhs;}
+
+    template<class T>
+    bool operator>=(const MyStl::Deque<T>& lhs, const MyStl::Deque<T>& rhs){return !(lhs < rhs);}
+    
 } // namespace MyStl
 
 
