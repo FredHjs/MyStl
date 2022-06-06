@@ -15,6 +15,15 @@ bool equal(InputIt1 first1, InputIt1 last1, InputIt2 first2){
     return true;
 }
 
+template<typename InputIt1, typename InputIt2, typename F> 
+bool equal(InputIt1 first1, InputIt1 last1, InputIt2 first2, F& pred){
+    for (; first1 != last1; ++first1, ++first2){
+        if (!pred(*first1, *first2)) return false;
+    }
+
+    return true;
+}
+
 template <typename T>
 const T& max(const T& op_1, const T& op_2){return op_1 < op_2 ? op_2 : op_1;}
 
@@ -110,6 +119,30 @@ BidirIt2 copy_backward(BidirIt1 first, BidirIt1 last, BidirIt2 d_last){ //return
     }
 
     return d_last;
+}
+
+template <typename InputIt1, typename InputIt2>
+bool lexicographical_compare(InputIt1 first_1, InputIt1 last_1, InputIt2 first_2, InputIt2 last_2){
+    while  (first_1 != last_1 && first_2 != last_2){
+        if (*first_1 < *first_2) return true;
+        else if (*first_2 < *first_1) return false;
+
+        ++first_1, ++first_2;
+    }
+
+    return (first_1 == last_1 && first_2 != last_2);
+}
+
+template <typename InputIt1, typename InputIt2, typename F>
+bool lexicographical_compare(InputIt1 first_1, InputIt1 last_1, InputIt2 first_2, InputIt2 last_2, F& pred){
+    while  (first_1 != last_1 && first_2 != last_2){
+        if (pred(*first_1, *first_2)) return true;
+        else if (pred(*first_2, *first_1)) return false;
+
+        ++first_1, ++first_2;
+    }
+
+    return (first_1 == last_1 && first_2 != last_2);
 }
 } // namespace MyStl
 
