@@ -27,9 +27,12 @@ int main(){
     v9.insert(v9.end(), 2, 'z');
     v9.insert(v9.begin(), 3, 'c');
     MyStl::Tests::print(v9, "vector_9");
+    std::cout << v9.size() << " " << v9.capacity() << std::endl;
+    v9.shrink_to_fit();
+    std::cout << v9.size() << " " << v9.capacity() << std::endl;
 
     v7.resize(18, "hello");
     MyStl::Tests::print(v7, "vector_7");
-
+    
     return 0;
 }

@@ -545,10 +545,9 @@ namespace MyStl{
     template<class T>
     bool operator!=(const MyStl::Vector<T>& lhs, const MyStl::Vector<T>& rhs){return !(lhs == rhs);}
 
-    //TODO: define lexicographical_compare in algorithm part
     template<class T>
     bool operator<(const MyStl::Vector<T>& lhs, const MyStl::Vector<T>& rhs){
-        return std::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
+        return MyStl::lexicographical_compare(lhs.begin(), lhs.end(), rhs.begin(), rhs.end());
     }
 
     template<class T>
