@@ -28,7 +28,7 @@ namespace MyStl{
 
         Node(const value_type& val): _val(val){}
 
-        Node(const Node_Base<T>*& prev, const Node_Base<T>*& next, const value_type& val): node_base(prev, next), _val(val){}
+        Node(const Node_Base<T>*& prev, const Node_Base<T>*& next, const value_type& val): Node_Base<T>(prev, next), _val(val){}
 
         Node_Base<T>* as_base(){return static_cast<Node_Base<T>*>(this);}
 
@@ -112,15 +112,16 @@ namespace MyStl{
             using const_pointer = typename allocator_type::const_pointer;
             using iterator = List_Iterator<T, T*, T&>;
             using const_iterator = List_Iterator<T, const T*, const T&>;
-            using reverse_iterator = Reverse_Iterator<Iterator>;
+            using reverse_iterator = Reverse_Iterator<iterator>;
             using const_reverse_iterator = Reverse_Iterator<const_iterator>;
 
             using base_ptr = Node_Base<T>*;
             using node_ptr = Node<T>*;
-            using node_allocator = std::allocator<Node>;
+            using node_type = Node<T>;
+            using node_allocator = std::allocator<node_type>;
 
-            allocator_type _get_al() {return allocator_type();}
-            node_allocator _get_node_al() {return node_allocator();}
+            allocator_type inline _get_al() {return allocator_type();}
+            node_allocator inline _get_node_al() {return node_allocator();}
 
         private:
             base_ptr _end;  //pass-the-end sentinel node
@@ -128,17 +129,32 @@ namespace MyStl{
 
         public:
         /* ctor and dtor */
-        list(): _end(nullptr), _size(0){}
+        List(): _end(nullptr), _size(0){}
 
         private:
         /* helpers */
         void fill_init_n(size_type count, const value_type& value){
-
+            
         }
-
+        
         template <typename... Args>
         node_ptr create_node(base_ptr at, Args&&...args){
+            node_ptr p_node = nullptr;
+            try{
+                p_node = _get_node_al().allocate(1);
+                _get_node_al().construct(p_node, std::forward(args)...);
+            }catch(...){
+                _get_node_al().deallocate(p_node, 1);
+                throw;
+            }
+            
+            if (at){
+                p_node->_previous = at->_previous;
+                at->_previous = p_node;
+                p_node->_next = at;
+            }
 
+            return p_node;
         }
 
     };
