@@ -28,13 +28,13 @@ template <typename T>
 const T& max(const T& op_1, const T& op_2){return op_1 < op_2 ? op_2 : op_1;}
 
 template <typename T, typename F>
-const T& max(const T& op_1, const T& op_2, F& pred){return pred(op_1, op_2) ? op_2 : op_1;}
+const T& max(const T& op_1, const T& op_2, F pred){return pred(op_1, op_2) ? op_2 : op_1;}
 
 template <typename T>
 const T& min(const T& op_1, const T& op_2){return op_1 < op_2 ? op_1 : op_2;}
 
 template <typename T, typename F>
-const T& min(const T& op_1, const T& op_2, F& pred){return pred(op_1, op_2) ? op_1 : op_2;}
+const T& min(const T& op_1, const T& op_2, F pred){return pred(op_1, op_2) ? op_1 : op_2;}
 
 template<typename T>
 void destroy_unchecked(T* p, std::true_type){}
@@ -134,7 +134,7 @@ bool lexicographical_compare(InputIt1 first_1, InputIt1 last_1, InputIt2 first_2
 }
 
 template <typename InputIt1, typename InputIt2, typename F>
-bool lexicographical_compare(InputIt1 first_1, InputIt1 last_1, InputIt2 first_2, InputIt2 last_2, F& pred){
+bool lexicographical_compare(InputIt1 first_1, InputIt1 last_1, InputIt2 first_2, InputIt2 last_2, F pred){
     while  (first_1 != last_1 && first_2 != last_2){
         if (pred(*first_1, *first_2)) return true;
         else if (pred(*first_2, *first_1)) return false;
@@ -143,6 +143,26 @@ bool lexicographical_compare(InputIt1 first_1, InputIt1 last_1, InputIt2 first_2
     }
 
     return (first_1 == last_1 && first_2 != last_2);
+}
+
+template<typename InputIt, typename F>
+F for_each(InputIt first, InputIt last, F func){
+    for (; first != last; ++first){
+        func(*first);
+    }
+
+    return func;
+}
+
+template<typename InputIt, typename OutputIt, typename F>
+OutputIt copy_if(InputIt first, InputIt last, OutputIt d_first, F pred){
+    for (; first != last; ++first){
+        if (pred(*first)){
+            *d_first = *first;
+            ++d_first;
+        }
+    }
+    return d_first;
 }
 } // namespace MyStl
 
