@@ -2,6 +2,7 @@
 #define LIST_H
 
 #include "Iterator.h"
+#include "Algorithm.h"
 #include <cassert>
 #include <memory>
 
@@ -18,6 +19,8 @@ namespace MyStl{
         Node_Base(const Node_Base<T>*& prev, const Node_Base<T>*& next): _previous(prev), _next(next){}
 
         Node<T>* as_node(){return static_cast<Node<T>*>(this);}
+
+        void set_init_status(){_previous = _next = this;}
     };
 
     template<typename T>
@@ -118,9 +121,12 @@ namespace MyStl{
             using base_ptr = Node_Base<T>*;
             using node_ptr = Node<T>*;
             using node_type = Node<T>;
+            using base_type = Node_Base<T>;
+            using base_allocator = std::allocator<base_type>;
             using node_allocator = std::allocator<node_type>;
 
             allocator_type inline _get_al() {return allocator_type();}
+            base_allocator inline _get_base_al(){return base_allocator();}
             node_allocator inline _get_node_al() {return node_allocator();}
 
         private:
@@ -129,12 +135,47 @@ namespace MyStl{
 
         public:
         /* ctor and dtor */
-        List(): _end(nullptr), _size(0){}
+        List(): _end(_get_node_al().allocate(1)), _size(0){
+            _end->set_init_status();
+        }
+
+        List(size_type count, const T& value){
+            fill_init_n(count, value);
+        }
+
+        explicit List(size_type count){
+            fill_init_n(count, value_type());
+        }
+
+        public:
+        /* member access */
+        iterator begin() noexcept {return iterator(_end->_next);}
+
+        iterator end() noexcept {return iterator(_end);}
+
+        public:
+        /* modifiers */
+        void clear(){
+            tidy();
+        }
 
         private:
         /* helpers */
         void fill_init_n(size_type count, const value_type& value){
-            
+            try{
+                _end = _get_node_al().allocate(1);
+                _end->set_init_status();
+
+                for (size_type i = 0; i < count; ++i){
+                    create_node(_end, value);
+                }
+            }catch(...){
+                tidy();
+                _get_base_al().deallocate(_end, 1);     //node_base only has pointers as member variables, so memory can be directly released
+                _end = nullptr;
+                throw;
+            }
+            _size = count;
         }
         
         template <typename... Args>
@@ -152,9 +193,23 @@ namespace MyStl{
                 p_node->_previous = at->_previous;
                 at->_previous = p_node;
                 p_node->_next = at;
+                p_node->_previous->next = p_node;
             }
 
             return p_node;
+        }
+
+        void tidy(){
+            auto cur = _end->_next;
+            while(cur != _end){
+                _get_al().destroy(&(cur->as_node()->_val));     //has to use address of _val to call its dtor
+                _get_node_al().deallocate(cur->as_node(), 1);
+
+                cur = cur->next;
+            }
+
+            _end->set_init_status();
+            _size = 0;
         }
 
     };
