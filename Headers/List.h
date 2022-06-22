@@ -147,6 +147,40 @@ namespace MyStl{
             fill_init_n(count, value_type());
         }
 
+        template<class InputIt,typename std::enable_if<MyStl::Is_Input_Iterator<InputIt>::value, bool>::type = true> 
+        List(InputIt first, InputIt last){
+            _size = MyStl::distance(first, last);
+
+            try{
+                init_end_node();
+
+                for (; first != last; ++first){
+                    create_node(_end, *first);
+                }
+            }catch(...){
+                tidy();
+                _get_base_al().deallocate(_end, 1);     //node_base only has pointers as member variables, so memory can be directly released
+                _end = nullptr;
+                throw;
+            }
+        }
+
+        List(const List& other): List(other.begin(), other.end()){}
+
+        List(List&& other): _size(other._size), _end(other._end){
+            other._size = 0;
+            other._end = nullptr;
+        }
+
+        List(std::initializer_list<T> init): List(init.begin(), init.end()){}
+
+        ~List(){
+            tidy();
+            _get_base_al().deallocate(_end, 1);
+            _end = nullptr;
+            _size = 0;
+        }
+
         public:
         /* member access */
         iterator begin() noexcept {return iterator(_end->_next);}
@@ -161,10 +195,14 @@ namespace MyStl{
 
         private:
         /* helpers */
+        void init_end_node(){
+            _end = _get_node_al().allocate(1);
+            _end->set_init_status();
+        }
+
         void fill_init_n(size_type count, const value_type& value){
             try{
-                _end = _get_node_al().allocate(1);
-                _end->set_init_status();
+                init_end_node();
 
                 for (size_type i = 0; i < count; ++i){
                     create_node(_end, value);
