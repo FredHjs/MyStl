@@ -38,6 +38,7 @@ namespace MyStl{
         value_type _val;
     };
 
+    //TODO: add List_Const_Iterator class
     template<typename T, typename Pointer, typename Reference>
     class List_Iterator: public MyStl::Iterator<Bidirectional_Iterator_Tag, T, ptrdiff_t, Pointer, Reference>{
         public:
@@ -181,17 +182,89 @@ namespace MyStl{
             _size = 0;
         }
 
+        List& operator=(const List& other){
+            if (this != &other){
+                copy(other.begin(), other.end());
+            }
+
+            return *this;
+        }
+
+        List& operator=(List&& other){
+            List<T> temp(std::move(other));
+            swap(temp);
+        }
+
+        List& operator=(std::initializer_list<T> init){
+            copy(init.begin(), init.end());
+            return *this;
+        }
+
+        void assign(size_type count, const T& value){
+            if (count >= _size){
+                auto insert_start = MyStl::fill(begin(), end(), value);
+                insert(end(), count - _size, value);
+            }else{
+                auto erase_start = begin();
+                while(count > 0){
+                    *(erase_start++) = value;
+                    --count;
+                }
+
+                erase(erase_start, end());
+            }
+        }
+
+        template<class InputIt>
+        void assign(InputIt first, InputIt last){
+            copy(first, last);
+        }
+
+        void assign(std::initializer_list<T> ilist){
+            copy(init.begin(), init.end());
+        }
+
         public:
         /* member access */
+        reference front(){return *begin();}
+
+        const_reference front() const {retirn *begin();}
+
+        reference back(){return *(--end());}
+
+        const_reference back() const {return *(--end());}
+
+        public:
+        /* iterators */
         iterator begin() noexcept {return iterator(_end->_next);}
 
+        const_iterator begin() const noexcept {return const_iterator(_end->_next);}
+
+        const_iterator cbegin() const noexcept {return const_iterator(_end->_next);}
+
         iterator end() noexcept {return iterator(_end);}
+
+        const_iterator end() const noexcept {return const_iterator(_end);}
+
+        const_iterator cend() const noexcept {return const_iterator(_end);}
 
         public:
         /* modifiers */
         void clear(){
             tidy();
         }
+
+        void swap(const List& other){
+            std::swap(_size, other._size);
+            std::swap(_end, other._end);
+        }
+
+        template<class InputIt>
+        iterator insert(const_iterator pos, InputIt first, InputIt last);
+
+        iterator insert(const_iterator pos, size_type count, const T& value);
+
+        iterator erase(const_iterator first, const_iterator last);
 
         private:
         /* helpers */
@@ -250,6 +323,21 @@ namespace MyStl{
             _size = 0;
         }
 
+        template<typename InputIt>
+        void copy(InputIt first, InputIt last){
+            auto distance = MyStl::distance(first, last);
+            if (distance <= _size){
+                auto erase_start = MyStl::copy(first, last, begin());
+                erase(erase_start, end());
+            }else{
+                auto other_cur = first;
+                for (auto cur = begin(); cur != end(); ++cur, ++other_cur){
+                    *cur = *other_cur;
+                }
+
+                insert(end(), other_cur, last);
+            }
+        }
     };
 }
 
