@@ -38,13 +38,12 @@ namespace MyStl{
         value_type _val;
     };
 
-    //TODO: add List_Const_Iterator class
-    template<typename T, typename Pointer, typename Reference>
-    class List_Iterator: public MyStl::Iterator<Bidirectional_Iterator_Tag, T, ptrdiff_t, Pointer, Reference>{
+    template<typename T>
+    class List_Iterator: public MyStl::Iterator<Bidirectional_Iterator_Tag, T>{
         public:
             using value_type = T;
-            using reference = Reference;
-            using pointer = Pointer;
+            using reference = T&;
+            using pointer = T*;
             using base_ptr = Node_Base<T>*;
             using node_ptr = Node<T>*;
 
@@ -101,6 +100,70 @@ namespace MyStl{
             }
     };
 
+    template<typename T>
+    class List_Const_Iterator: public MyStl::Iterator<Bidirectional_Iterator_Tag, T>{       //make iterator convertible to const_iterator
+        public:
+            using value_type = T;
+            using reference = const T&;
+            using pointer = const T*;
+            using base_ptr = Node_Base<T>*;
+            using node_ptr = Node<T>*;
+
+        private:
+            base_ptr _node;
+
+        public:
+            List_Const_Iterator() = default;
+
+            List_Const_Iterator(const List_Const_Iterator& other): _node(other._node){}
+
+            List_Const_Iterator(List_Const_Iterator&& other): _node(other._node){other._node = nullptr;}
+
+            List_Const_Iterator(const List_Iterator& other): _node(other._node){}
+
+            List_Const_Iterator(base_ptr bp): _node(bp){}
+
+            List_Const_Iterator(node_ptr np): _node(np->as_base()){}
+
+            T& operator*() const {return _node->as_node()->_val;}
+
+            T* operator->() const {return &(operator*());}
+
+            List_Const_Iterator& operator++(){
+                assert(_node);
+                _node = _node->_next;
+                return *this;
+            }
+
+            List_Const_Iterator& operator--(){
+                assert(_node);
+                _node = _node->_previous;
+                return *this;
+            }
+
+            List_Const_Iterator operator++(int){
+                assert(_node);
+                auto temp = *this;
+                _node = _node->_next;
+                return temp;
+            }
+
+            List_Const_Iterator operator--(int){
+                assert(_node);
+                auto temp = *this;
+                _node = _node->_previous;
+                return temp;
+            }
+
+            bool operator==(const List_Const_Iterator& rhs) const {
+                return _node == rhs._node;
+            }
+
+            bool operator != (const List_Const_Iterator& rhs) const {
+                return _node != rhs._node;
+            }
+    };
+
     /* circular doubly-linked list, maintains a pointer to the pass-the-end sentinel node */
     template<typename T>
     class List{
@@ -114,8 +177,8 @@ namespace MyStl{
             using const_reference = const value_type&;
             using pointer = typename allocator_type::pointer;
             using const_pointer = typename allocator_type::const_pointer;
-            using iterator = List_Iterator<T, T*, T&>;
-            using const_iterator = List_Iterator<T, const T*, const T&>;
+            using iterator = List_Iterator<T>;
+            using const_iterator = List_Const_Iterator<T>;
             using reverse_iterator = Reverse_Iterator<iterator>;
             using const_reverse_iterator = Reverse_Iterator<const_iterator>;
 
@@ -248,6 +311,24 @@ namespace MyStl{
 
         const_iterator cend() const noexcept {return const_iterator(_end);}
 
+        reverse_iterator rbegin() noexcept {return reverse_iterator(end());}
+
+        const_reverse_iterator rbegin() const noexcept {return const_reverse_iterator(end());}
+
+        const_reverse_iterator crbegin() const noexcept {return const_reverse_iterator(end());}
+
+        reverse_iterator rend() noexcept {return reverse_iterator(begin());}
+
+        const_reverse_iterator rend() const noexcept {return const_reverse_iterator(begin());}
+
+        const_reverse_iterator crend() const noexcept {return const_reverse_iterator(begin());}
+
+        public:
+        /* capacity */
+        bool empty() const noexcept {return _size == 0;}
+
+        size_type size() const noexcept {return _size;}
+
         public:
         /* modifiers */
         void clear(){
@@ -259,10 +340,85 @@ namespace MyStl{
             std::swap(_end, other._end);
         }
 
-        template<class InputIt>
-        iterator insert(const_iterator pos, InputIt first, InputIt last);
+        template<class InputIt, typename std::enable_if<MyStl::Is_Input_Iterator<InputIt>::value, bool>::type = true>
+        iterator insert(const_iterator pos, InputIt first, InputIt last){
+            assert(first <= last);
+            auto _pos = iterator(pos._node);
+            if (first == last) return _pos;
 
-        iterator insert(const_iterator pos, size_type count, const T& value);
+            auto count = MyStl::distance(first, last);
+            auto other_beg = create_node(nullptr, *first), other_end = other_beg;
+            ++first;
+            while(first != last){
+                auto node =  create_node(nullptr, *first); //avoid assigning each time
+                other_end->next = node->as_base();
+                node->prev = other_end;
+                other_end = node;
+
+                ++first;
+            }
+
+            _size += count;
+            _pos->_previous->next = other_beg->as_base();
+            _pos->_previous = other_end->as_base();
+            other_beg->_previous = _pos->_previous;
+            other_end->next = _pos._node;
+
+            return other_beg;
+        }
+
+        iterator insert(const_iterator pos, size_type count, const T& value){
+            auto _pos = iterator(pos._node);
+            if (count == 0) return _pos;
+
+            auto _count = count;
+            auto other_beg = create_node(nullptr, value), other_end = other_beg;
+            --_count;
+
+            while (_count > 0){
+                auto node = create_node(nullptr, value);
+                other_end->next = node->as_base();
+                node->prev = other_end;
+                other_end = node;
+
+                --_count;
+            }
+            
+            _size += count;
+            _pos->_previous->next = other_beg->as_base();
+            _pos->_previous = other_end->as_base();
+            other_beg->_previous = _pos->_previous;
+            other_end->next = _pos._node;
+
+            return other_beg;
+        }
+
+        iterator insert(const_iterator pos, const T& value){
+            auto node = create_node(_pos._node->as_base(), value);
+            ++_size;
+            return iterator(node);
+        }
+
+        iterator insert(const_iterator pos, T&& value){
+            auto node = create_node(_pos._node->as_base(), std::move(value));
+            ++_size;
+            return iterator(node);
+        }
+
+        iterator insert(const_iterator pos, std::initializer_list<T> ilist){
+            return insert(ilist.begin(), ilist.end());
+        }
+
+        template<class... Args>
+        iterator emplace(const_iterator pos, Args&&... args){
+            auto node = create_node(_pos._node->as_base(), std::forward<Args>(args)...);
+            ++_size;
+            return iterator(node);
+        }
+
+        iterator erase(const_iterator pos){
+            
+        }
 
         iterator erase(const_iterator first, const_iterator last);
 
