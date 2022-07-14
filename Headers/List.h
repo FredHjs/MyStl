@@ -343,7 +343,7 @@ namespace MyStl{
         template<class InputIt, typename std::enable_if<MyStl::Is_Input_Iterator<InputIt>::value, bool>::type = true>
         iterator insert(const_iterator pos, InputIt first, InputIt last){
             assert(first <= last);
-            auto _pos = iterator(pos._node);
+            base_ptr _pos = pos._node;
             if (first == last) return _pos;
 
             auto count = MyStl::distance(first, last);
@@ -361,14 +361,14 @@ namespace MyStl{
             _size += count;
             _pos->_previous->next = other_beg->as_base();
             _pos->_previous = other_end->as_base();
-            other_beg->_previous = _pos->_previous;
-            other_end->next = _pos._node;
+            other_beg._node->_previous = _pos->_previous;
+            other_end._node->next = _pos._node;
 
             return other_beg;
         }
 
         iterator insert(const_iterator pos, size_type count, const T& value){
-            auto _pos = iterator(pos._node);
+            auto _pos = pos._node;
             if (count == 0) return _pos;
 
             auto _count = count;
@@ -417,10 +417,87 @@ namespace MyStl{
         }
 
         iterator erase(const_iterator pos){
-            
+            assert(!empty());
+
+            base_ptr node = pos._node, ret = node->_next;
+            take_out_nodes(node);
+
+            delete_node(node);
+            --_size;
+
+            return iterator(ret);
         }
 
-        iterator erase(const_iterator first, const_iterator last);
+        iterator erase(const_iterator first, const_iterator last){
+            assert(!empty());
+            assert(first <= last);
+
+            base_ptr _first = first._node, _last = last._node;
+
+            if (first != last){
+                take_out_nodes(_first, _last->_previous);
+
+                while(first != last){
+                    delete_node(first._node);
+                    ++first;
+                }
+                _size += MyStl::distance(first, last);
+            }
+
+            return iterator(_last);
+        }
+
+        void push_back(const T& value){
+            create_node(_end, value);
+            ++_size;
+        }
+
+        void push_back(T&& value){
+            create_node(_end, std::move(value));
+            ++_size;
+        }
+
+        template<class... Args>
+        void emplace_back(Args&&... args){
+            create_node(_end, std::forward<Args>(args)...);
+            ++_size;
+        }
+
+        void pop_back(){
+            assert(!empty());
+
+            base_ptr _back = _end->_previous;
+            take_out_nodes(_back, _back);
+
+            delete_node(_back);
+            --_size;
+        }
+
+        void push_front(const T& value){
+            create_node(_end->_nextn, value);
+            ++_size;
+        }
+
+        void push_front(T&& value){
+            create_node(_end->_next, std::move(value));
+            ++_size;
+        }
+
+        template<class... Args>
+        void emplace_front(Args&&... args){
+            create_node(_end->_next, std::forward(args)...);
+            ++_size;
+        }
+
+        void pop_front(){
+            assert(!empty());
+
+            base_ptr _front = _end->_next;
+            take_out_nodes(_front, _front);
+
+            delete_node(_front);
+            --_size;
+        }
 
         private:
         /* helpers */
@@ -469,8 +546,7 @@ namespace MyStl{
         void tidy(){
             auto cur = _end->_next;
             while(cur != _end){
-                _get_al().destroy(&(cur->as_node()->_val));     //has to use address of _val to call its dtor
-                _get_node_al().deallocate(cur->as_node(), 1);
+                delete_node(cur);
 
                 cur = cur->next;
             }
@@ -493,6 +569,17 @@ namespace MyStl{
 
                 insert(end(), other_cur, last);
             }
+        }
+
+        void delete_node(base_ptr node){
+            _get_al().destroy(&(node->as_node()->_val));       //has to use address of _val to call its dtor
+            _get_node_al().deallocate(node->as_node(), 1);
+        }
+
+        //take out [first, last] and re-link the rest
+        void take_out_nodes(base_ptr first, base_ptr last){
+            first->_previous->_next = last->_next;
+            last->_next->_previous = first->_previous;
         }
     };
 }
