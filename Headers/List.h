@@ -524,6 +524,119 @@ namespace MyStl{
             }
         }
 
+        public:
+        /* operations */
+        template <class Compare> 
+        void merge(List&& other, Compare comp){
+            if (&other != this){
+                base_ptr cur = _end->_next, other_cur = other._end->_next;
+
+                for (; cur != _end && other_cur != other._end; cur = cur->_next){
+                    if (comp(other_cur->as_node()->_val, cur->as_node()->_val)){
+                        // find the interval on other that fits comp
+                        base_ptr interval_end = other_cur->_next;
+                        const_reference val = cur->as_node()->_val;
+
+                        while(interval_end != other._end && comp(interval_end->as_node()->_val, val)){
+                            interval_end = interval_end->_next
+                        }
+                        auto next_start = interval_end;
+                        interval_end = interval_end->_previous;
+                        //now interval_end points to the last node that comp(interval_end->as_node()->_val, val) == true
+                        other.take_out_nodes(other_cur, interval_end);
+                        this->link_nodes_at(other_cur, interval_end);
+
+                        other_cur = next_start;
+                    }else{
+                        continue;
+                    }
+                }
+                
+                if (other_cur != other._end){
+                    auto other_last = other._end->_previous;
+                    other.take_out_nodes(other_cur, other_last);
+                    this->link_nodes_at(other_cur, other_last, this->_end);
+                }
+
+                this->_size += other._size;
+                other._size = 0;
+            }
+        }
+
+        void merge(List&& other){
+            merge(std::move(other), [](const T& val_1, const T& val_2) -> bool {return val_1 < val_2;});
+        }
+
+        void splice(const_iterator pos, List&& other){
+            if (&other != this && !other.empty()){
+                auto other_first = other._end->_next, other_last = other._end->_previous;
+
+                other.take_out_nodes(other_first, other_last);
+                link_nodes_at(other_first, other_last, pos._node);
+
+                _size += other._size;
+                other._size = 0;
+            }
+        }
+
+        void splice(const_iterator pos, List&& other, const_iterator it){
+            if (&other != this && !other.empty()){
+                auto other_node = it._node;
+
+                other.take_out_nodes(other_node, other_node);
+                link_nodes_at(other_node, other_node, pos._node);
+
+                ++_size;
+                --other._size;
+            }
+        }
+
+        void splice(const_iterator pos, List&& other, const_iterator first, const_iterator last){
+            if (&other != this && !other.empty()){
+                auto other_first = first._node, other_last = last._node->_previous;
+                auto num_elem = MyStl::distance(first, last);
+
+                other.take_out_nodes(other_first, other_last);
+                link_nodes_at(other_first, other_last, pos._node);
+
+                _size += num_elem;
+                other._size -=num_elem;
+            }
+        }
+
+        void remove(const T& value){
+            remove_if([](const T& x) -> bool{return x == value};);
+        }
+
+        template<class UnaryPredicate> 
+        void remove_if(UnaryPredicate p){
+            iterator cur = begin();
+            while(cur != end()){
+                if (p(*cur))
+                    cur = erase(cur);
+                else
+                    ++cur;
+            }
+        }
+
+        template<class BinaryPredicate> 
+        void unique(BinaryPredicate p){
+            iterator next = begin(), cur = next;
+            ++next;
+            while(next != end()){
+                if (p(*cur, *next)){
+                    next = erase(next);
+                }else{
+                    ++cur;
+                    ++next;
+                }
+            }
+        }
+
+        void unique(){
+            unique([](const T& cur, const T& next) -> bool{return cur == next;});
+        }
+
         private:
         /* helpers */
         void init_end_node(){
@@ -605,6 +718,14 @@ namespace MyStl{
         void take_out_nodes(base_ptr first, base_ptr last){
             first->_previous->_next = last->_next;
             last->_next->_previous = first->_previous;
+        }
+
+        //add [first, last] at a specified position
+        void link_nodes_at(base_ptr first, base_ptr last, base_ptr at){
+            first->_previous = at->_previous;
+            last->_next = at;
+            at->_previous->_next = first;
+            at->_previous = last;
         }
     };
 }
