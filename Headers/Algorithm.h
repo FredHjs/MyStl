@@ -36,6 +36,18 @@ const T& min(const T& op_1, const T& op_2){return op_1 < op_2 ? op_1 : op_2;}
 template <typename T, typename F>
 const T& min(const T& op_1, const T& op_2, F pred){return pred(op_1, op_2) ? op_1 : op_2;}
 
+int abs (int n){
+    return n < 0 ? -n : n;
+}
+
+long abs(long n){
+    return n < 0 ? -n : n;
+}
+
+long long llabs(long long n){
+    return n < 0 ? -n : n;
+}
+
 template<typename T>
 void destroy_unchecked(T* p, std::true_type){}
 
