@@ -499,6 +499,31 @@ namespace MyStl{
             --_size;
         }
 
+        void resize(size_type count){
+            resize(count, T());
+        }
+
+        void resize(size_type count, const value_type& value){
+            long long diff = MyStl::llabs(_size - count);
+            if(count <= _size){
+                iterator new_end = end();
+                while (diff > 0){
+                    --new_end;
+                    --diff;
+                }
+
+                erase(new_end, end());
+                _size -= (_size - count);
+            }else{
+                while (diff > 0){
+                    create_node(_end, value);
+                    --diff;
+                }
+
+                _size += (count - _size);
+            }
+        }
+
         private:
         /* helpers */
         void init_end_node(){
