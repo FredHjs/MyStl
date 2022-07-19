@@ -524,6 +524,56 @@ namespace MyStl{
             }
         }
 
+        template <class Compare> 
+        void merge(List&& other, Compare comp){
+            if (&other != this){
+                base_ptr cur = _end->_next, other_cur = other._end->_next;
+
+                for (; cur != _end && other_cur != other._end; cur = cur->_next){
+                    if (comp(other_cur->as_node()->_val, cur->as_node()->_val)){
+                        // find the interval on other that fits comp
+                        base_ptr interval_end = other_cur->_next;
+                        const_reference val = cur->as_node()->_val;
+
+                        while(interval_end != other._end && comp(interval_end->as_node()->_val, val)){
+                            interval_end = interval_end->_next
+                        }
+                        auto next_start = interval_end;
+                        interval_end = interval_end->_previous;
+                        //now interval_end points to the last node that comp(interval_end->as_node()->_val, val) == true
+                        other.take_out_nodes(other_cur, interval_end);
+                        this->link_nodes_at(other_cur, interval_end);
+
+                        other_cur = next_start;
+                    }else{
+                        continue;
+                    }
+                }
+                
+                if (other_cur != other._end){
+                    auto other_last = other._end->_previous;
+                    other.take_out_nodes(other_cur, other_last);
+                    this->link_nodes_at(other_cur, other_last, this->_end);
+                }
+
+                this->_size += other._size;
+                other._size = 0;
+            }
+        }
+
+        void merge(List& other){
+            merge(std::move(other), [](const T& val_1, const T& val_2) -> bool {return val_1 < val_2;});
+        }
+
+        void merge(List&& other){
+            merge(std::move(other), [](const T& val_1, const T& val_2) -> bool {return val_1 < val_2;});
+        }
+
+        template <class Compare> 
+        void merge(List& other, Compare comp){
+            merge(std::move(other), comp);
+        }
+
         private:
         /* helpers */
         void init_end_node(){
@@ -605,6 +655,14 @@ namespace MyStl{
         void take_out_nodes(base_ptr first, base_ptr last){
             first->_previous->_next = last->_next;
             last->_next->_previous = first->_previous;
+        }
+
+        //add [first, last] at a specified position
+        void link_nodes_at(base_ptr first, base_ptr last, base_ptr at){
+            first->_previous = at->_previous;
+            last->_next = at;
+            at->_previous->_next = first;
+            at->_previous = last;
         }
     };
 }
