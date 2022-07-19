@@ -561,17 +561,8 @@ namespace MyStl{
             }
         }
 
-        void merge(List& other){
-            merge(std::move(other), [](const T& val_1, const T& val_2) -> bool {return val_1 < val_2;});
-        }
-
         void merge(List&& other){
             merge(std::move(other), [](const T& val_1, const T& val_2) -> bool {return val_1 < val_2;});
-        }
-
-        template <class Compare> 
-        void merge(List& other, Compare comp){
-            merge(std::move(other), comp);
         }
 
         private:
