@@ -524,6 +524,8 @@ namespace MyStl{
             }
         }
 
+        public:
+        /* operations */
         template <class Compare> 
         void merge(List&& other, Compare comp){
             if (&other != this){
@@ -563,6 +565,76 @@ namespace MyStl{
 
         void merge(List&& other){
             merge(std::move(other), [](const T& val_1, const T& val_2) -> bool {return val_1 < val_2;});
+        }
+
+        void splice(const_iterator pos, List&& other){
+            if (&other != this && !other.empty()){
+                auto other_first = other._end->_next, other_last = other._end->_previous;
+
+                other.take_out_nodes(other_first, other_last);
+                link_nodes_at(other_first, other_last, pos._node);
+
+                _size += other._size;
+                other._size = 0;
+            }
+        }
+
+        void splice(const_iterator pos, List&& other, const_iterator it){
+            if (&other != this && !other.empty()){
+                auto other_node = it._node;
+
+                other.take_out_nodes(other_node, other_node);
+                link_nodes_at(other_node, other_node, pos._node);
+
+                ++_size;
+                --other._size;
+            }
+        }
+
+        void splice(const_iterator pos, List&& other, const_iterator first, const_iterator last){
+            if (&other != this && !other.empty()){
+                auto other_first = first._node, other_last = last._node->_previous;
+                auto num_elem = MyStl::distance(first, last);
+
+                other.take_out_nodes(other_first, other_last);
+                link_nodes_at(other_first, other_last, pos._node);
+
+                _size += num_elem;
+                other._size -=num_elem;
+            }
+        }
+
+        void remove(const T& value){
+            remove_if([](const T& x) -> bool{return x == value};);
+        }
+
+        template<class UnaryPredicate> 
+        void remove_if(UnaryPredicate p){
+            iterator cur = begin();
+            while(cur != end()){
+                if (p(*cur))
+                    cur = erase(cur);
+                else
+                    ++cur;
+            }
+        }
+
+        template<class BinaryPredicate> 
+        void unique(BinaryPredicate p){
+            iterator next = begin(), cur = next;
+            ++next;
+            while(next != end()){
+                if (p(*cur, *next)){
+                    next = erase(next);
+                }else{
+                    ++cur;
+                    ++next;
+                }
+            }
+        }
+
+        void unique(){
+            unique([](const T& cur, const T& next) -> bool{return cur == next;});
         }
 
         private:
