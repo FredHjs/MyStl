@@ -798,6 +798,42 @@ namespace MyStl{
             at->_previous = last;
         }
     };
+
+    /* operators */
+    template<class T>
+    bool operator==(const List<T>& lhs, const List<T>& rhs){
+        if (lhs.size() != rhs.size()) return false;
+        for (auto lit = lhs.begin(), rit = rhs.begin(); 
+            lit != lhs.end(); 
+            ++lit, ++rit){
+                if (*lit != *rit) return false;
+        }
+        return true;
+    }
+    template <class T>
+    bool operator<(const List<T>& lhs, const List<T>& rhs){
+        return MyStl::lexicographical_compare(lhs.cbegin(), lhs.cend(), rhs.cbegin(), rhs.cend());
+    }
+
+    template <class T>
+    bool operator!=(const List<T>& lhs, const List<T>& rhs){
+        return !(lhs == rhs);
+    }
+
+    template <class T>
+    bool operator>(const List<T>& lhs, const List<T>& rhs){
+        return rhs < lhs;
+    }
+
+    template <class T>
+    bool operator<=(const List<T>& lhs, const List<T>& rhs){
+        return !(rhs < lhs);
+    }
+
+    template <class T>
+    bool operator>=(const List<T>& lhs, const List<T>& rhs){
+        return !(lhs < rhs);
+    }
 }
 
 #endif
