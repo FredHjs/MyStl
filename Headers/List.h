@@ -637,8 +637,78 @@ namespace MyStl{
             unique([](const T& cur, const T& next) -> bool{return cur == next;});
         }
 
+        void reverse() noexcept {
+            if(!empty() && _size != 1){
+                base_ptr cur = _end->_next;
+                while(cur != _end){
+                    std::swap(cur->_previous, cur->_next);
+                    cur = cur->_previous;
+                }
+
+                std::swap(_end->_previous, _end->_next);
+            }
+        }
+
+        void sort(){
+            merge_sort(begin(), end(), _size, [](const T& val1, const T& val2) -> bool{return val1 < val2;});
+        }
+
+        //recursive merge sort
+        template<class Compare>
+        void sort(Compare comp){
+            merge_sort(begin(), end(), _size, comp);
+        }
+
         private:
         /* helpers */
+        //recursively merge sort [first, last)
+        template<typename Compare>
+        iterator merge_sort(iterator first, iterator last, size_type size, Compare comp){
+            if (size == 1) return first;
+            else if (size == 2){
+                if (comp(*(--last), *first))
+                    swap_nodes(first._node, last._node);
+                    return last;
+                return first;
+            }else{
+                auto half_size = size / 2;
+                iterator first_2 = MyStl::advance(first, half_size);
+                first = merge_sort(first, first_2, half_size, comp);
+                first_2 = merge_sort(first_2, last, size - half_size, comp);
+
+                iterator last_1 = first_2;
+                //the smallest node is either first or first_2
+                iterator ret = comp(*first, *first_2) ? first : first_2;
+
+                //merge
+                for (;first != last_1 && first_2 != last; ++first){
+                    if(comp(*first_2, *first)){
+                        iterator interval_end = first_2;
+                        ++interval_end;
+
+                        while(interval_end != last && comp(*interval_end, *first)){
+                            ++interval_end;
+                        }
+                        auto next_start = interval_end;
+                        --interval_end;
+
+                        take_out_nodes(first_2._node, interval_end._node);
+                        link_nodes_at(first_2._node, interval_end._node, first._node);
+                    }else{
+                        continue;
+                    }
+                }
+
+                return ret;
+            }
+        }
+
+        //swap two consecutive nodes by pointer manipulations, no invalidations of iterators and/or references
+        void swap_nodes(base_ptr node1, base_ptr node2){
+            take_out_nodes(node2, node2);
+            link_nodes_at(node2, node2, node1);
+        }
+
         void init_end_node(){
             _end = _get_node_al().allocate(1);
             _end->set_init_status();
