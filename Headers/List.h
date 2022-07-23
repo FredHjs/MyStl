@@ -8,6 +8,8 @@
 
 namespace MyStl{
     template<typename T> struct Node;
+    template<typename T> class List;
+    template<typename T> class List_Const_Iterator;
 
     template<typename T>
     struct Node_Base{
@@ -40,6 +42,8 @@ namespace MyStl{
 
     template<typename T>
     class List_Iterator: public MyStl::Iterator<Bidirectional_Iterator_Tag, T>{
+        friend class List<T>;
+        friend class List_Const_Iterator<T>;
         public:
             using value_type = T;
             using reference = T&;
@@ -54,8 +58,6 @@ namespace MyStl{
             List_Iterator() = default;
 
             List_Iterator(const List_Iterator& other): _node(other._node){}
-
-            List_Iterator(List_Iterator&& other): _node(other._node){other._node = nullptr;}
 
             List_Iterator(base_ptr bp): _node(bp){}
 
@@ -102,6 +104,7 @@ namespace MyStl{
 
     template<typename T>
     class List_Const_Iterator: public MyStl::Iterator<Bidirectional_Iterator_Tag, T>{       //make iterator convertible to const_iterator
+        friend class List<T>;
         public:
             using value_type = T;
             using reference = const T&;
@@ -117,9 +120,7 @@ namespace MyStl{
 
             List_Const_Iterator(const List_Const_Iterator& other): _node(other._node){}
 
-            List_Const_Iterator(List_Const_Iterator&& other): _node(other._node){other._node = nullptr;}
-
-            List_Const_Iterator(const List_Iterator& other): _node(other._node){}
+            List_Const_Iterator(const List_Iterator<T>& other): _node(other._node){}
 
             List_Const_Iterator(base_ptr bp): _node(bp){}
 
@@ -284,14 +285,14 @@ namespace MyStl{
         }
 
         void assign(std::initializer_list<T> ilist){
-            copy(init.begin(), init.end());
+            copy(ilist.begin(), ilist.end());
         }
 
         public:
         /* member access */
         reference front(){return *begin();}
 
-        const_reference front() const {retirn *begin();}
+        const_reference front() const {return *begin();}
 
         reference back(){return *(--end());}
 
@@ -335,14 +336,13 @@ namespace MyStl{
             tidy();
         }
 
-        void swap(const List& other){
+        void swap(List& other){
             std::swap(_size, other._size);
             std::swap(_end, other._end);
         }
 
         template<class InputIt, typename std::enable_if<MyStl::Is_Input_Iterator<InputIt>::value, bool>::type = true>
         iterator insert(const_iterator pos, InputIt first, InputIt last){
-            assert(first <= last);
             base_ptr _pos = pos._node;
             if (first == last) return _pos;
 
@@ -351,18 +351,18 @@ namespace MyStl{
             ++first;
             while(first != last){
                 auto node =  create_node(nullptr, *first); //avoid assigning each time
-                other_end->next = node->as_base();
-                node->prev = other_end;
+                other_end->_next = node->as_base();
+                node->_previous = other_end;
                 other_end = node;
 
                 ++first;
             }
 
             _size += count;
-            _pos->_previous->next = other_beg->as_base();
+            _pos->_previous->_next = other_beg->as_base();
             _pos->_previous = other_end->as_base();
-            other_beg._node->_previous = _pos->_previous;
-            other_end._node->next = _pos._node;
+            other_beg->_previous = _pos->_previous;
+            other_end->_next = _pos;
 
             return other_beg;
         }
@@ -394,13 +394,13 @@ namespace MyStl{
         }
 
         iterator insert(const_iterator pos, const T& value){
-            auto node = create_node(_pos._node->as_base(), value);
+            auto node = create_node(pos._node->as_base(), value);
             ++_size;
             return iterator(node);
         }
 
         iterator insert(const_iterator pos, T&& value){
-            auto node = create_node(_pos._node->as_base(), std::move(value));
+            auto node = create_node(pos._node, std::move(value));
             ++_size;
             return iterator(node);
         }
@@ -411,7 +411,7 @@ namespace MyStl{
 
         template<class... Args>
         iterator emplace(const_iterator pos, Args&&... args){
-            auto node = create_node(_pos._node->as_base(), std::forward<Args>(args)...);
+            auto node = create_node(pos._node->as_base(), std::forward<Args>(args)...);
             ++_size;
             return iterator(node);
         }
@@ -420,9 +420,9 @@ namespace MyStl{
             assert(!empty());
 
             base_ptr node = pos._node, ret = node->_next;
-            take_out_nodes(node);
+            take_out_nodes(node, node);
 
-            delete_node(node);
+            delete_node(node->as_node());
             --_size;
 
             return iterator(ret);
@@ -430,7 +430,6 @@ namespace MyStl{
 
         iterator erase(const_iterator first, const_iterator last){
             assert(!empty());
-            assert(first <= last);
 
             base_ptr _first = first._node, _last = last._node;
 
@@ -438,7 +437,7 @@ namespace MyStl{
                 take_out_nodes(_first, _last->_previous);
 
                 while(first != last){
-                    delete_node(first._node);
+                    delete_node(first._node->as_node());
                     ++first;
                 }
                 _size += MyStl::distance(first, last);
@@ -485,7 +484,7 @@ namespace MyStl{
 
         template<class... Args>
         void emplace_front(Args&&... args){
-            create_node(_end->_next, std::forward(args)...);
+            create_node(_end->_next, std::forward<Args>(args)...);
             ++_size;
         }
 
@@ -495,7 +494,7 @@ namespace MyStl{
             base_ptr _front = _end->_next;
             take_out_nodes(_front, _front);
 
-            delete_node(_front);
+            delete_node(_front->as_node());
             --_size;
         }
 
@@ -538,13 +537,13 @@ namespace MyStl{
                         const_reference val = cur->as_node()->_val;
 
                         while(interval_end != other._end && comp(interval_end->as_node()->_val, val)){
-                            interval_end = interval_end->_next
+                            interval_end = interval_end->_next;
                         }
                         auto next_start = interval_end;
                         interval_end = interval_end->_previous;
                         //now interval_end points to the last node that comp(interval_end->as_node()->_val, val) == true
                         other.take_out_nodes(other_cur, interval_end);
-                        this->link_nodes_at(other_cur, interval_end);
+                        this->link_nodes_at(other_cur, interval_end, cur);
 
                         other_cur = next_start;
                     }else{
@@ -605,7 +604,7 @@ namespace MyStl{
         }
 
         void remove(const T& value){
-            remove_if([](const T& x) -> bool{return x == value};);
+            remove_if([&](const T& x) -> bool{return x == value;});
         }
 
         template<class UnaryPredicate> 
@@ -672,7 +671,8 @@ namespace MyStl{
                 return first;
             }else{
                 auto half_size = size / 2;
-                iterator first_2 = MyStl::advance(first, half_size);
+                iterator first_2 = first;
+                MyStl::advance(first_2, half_size);
                 first = merge_sort(first, first_2, half_size, comp);
                 first_2 = merge_sort(first_2, last, size - half_size, comp);
 
@@ -694,6 +694,8 @@ namespace MyStl{
 
                         take_out_nodes(first_2._node, interval_end._node);
                         link_nodes_at(first_2._node, interval_end._node, first._node);
+
+                        first_2 = next_start;
                     }else{
                         continue;
                     }
@@ -735,7 +737,7 @@ namespace MyStl{
             node_ptr p_node = nullptr;
             try{
                 p_node = _get_node_al().allocate(1);
-                _get_node_al().construct(p_node, std::forward(args)...);
+                _get_node_al().construct(p_node, std::forward<Args>(args)...);
             }catch(...){
                 _get_node_al().deallocate(p_node, 1);
                 throw;
@@ -745,22 +747,25 @@ namespace MyStl{
                 p_node->_previous = at->_previous;
                 at->_previous = p_node;
                 p_node->_next = at;
-                p_node->_previous->next = p_node;
+                p_node->_previous->_next = p_node;
             }
 
             return p_node;
         }
 
         void tidy(){
-            auto cur = _end->_next;
-            while(cur != _end){
-                delete_node(cur);
+            if (_end){
+                auto cur = _end->_next, next = cur->_next;
+                while(cur != _end){
+                    delete_node(cur->as_node());
 
-                cur = cur->next;
+                    cur = next;
+                    next = cur->_next;
+                }
+
+                _end->set_init_status();
+                _size = 0;
             }
-
-            _end->set_init_status();
-            _size = 0;
         }
 
         template<typename InputIt>
@@ -779,9 +784,9 @@ namespace MyStl{
             }
         }
 
-        void delete_node(base_ptr node){
-            _get_al().destroy(&(node->as_node()->_val));       //has to use address of _val to call its dtor
-            _get_node_al().deallocate(node->as_node(), 1);
+        void delete_node(node_ptr node){
+            _get_al().destroy(&(node->_val));       //has to use address of _val to call its dtor
+            _get_node_al().deallocate(node, 1);
         }
 
         //take out [first, last] and re-link the rest
