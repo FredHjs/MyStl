@@ -188,7 +188,34 @@ namespace MyStl
         typedef MyStl::Reverse_Iterator<iterator> reverse_iterator;
         typedef MyStl::Reverse_Iterator<const_iterator> const_reverse_iterator;
 
+        typedef _RB_tree_node_base* base_ptr;
+
         static_assert(std::__is_invocable<Compare, const key_type&, const key_type&>{}, 
                         "Compare predicate must be invocable.");
+
+        allocator_type _get_al() {return allocator_type();}
+
+    private:
+        base_ptr _header;
+        size_type _size;
+        Compare _key_compare;
+
+        base_ptr& root() {return _header->_parent;}
+        base_ptr& max_node() {return _header->_right;}
+        base_ptr& min_node() {return _header->_left;}
+
+        void default_init() {
+            _header->_parent = nullptr;
+            _header->_left = _header->_right = _header;  // must not set to nullptr in case begin() or end() called on empty tree
+            _header->_color = _RB_tree_color::_red;
+            _size = 0;
+            _key_compare = Compare();
+        }
+
+    public:
+        /* constructors */
+        _RB_tree() {default_init();}
+
+        
     };
 } // namespace MyStl
