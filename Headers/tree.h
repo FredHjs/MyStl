@@ -57,6 +57,13 @@ namespace MyStl
         void _flip_color() {
             _color = (_color == _RB_tree_color::_black) ? _RB_tree_color::_red : _RB_tree_color::_black;
         }
+
+        bool _is_lchild() {
+            return _parent->_left == this;
+        }
+
+        template<typename T>
+        inline _RB_tree_node<T>* _get_node() {return reinterpret_cast<_RB_tree_node<T>*>(this);}
     };
 
     template <class T>
@@ -73,6 +80,8 @@ namespace MyStl
         const T* _val_ptr() const {
             return std::__addressof(_val);
         } 
+
+        _Base_ptr inline _get_base() {return this;}
 
     };
 
@@ -134,7 +143,7 @@ namespace MyStl
         }
 
     private:
-        void increment() {
+        void increment() noexcept {
             if (_node_base->_right) {
                 _node_base = _node_base->_right->_min();
             } else {
@@ -152,7 +161,7 @@ namespace MyStl
             }
         }
 
-        void decrement() {
+        void decrement() noexcept {
             if (_node_base->_left) {
                 _node_base = _node_base->_left->_max();
             } else {
@@ -188,25 +197,33 @@ namespace MyStl
         typedef MyStl::Reverse_Iterator<iterator> reverse_iterator;
         typedef MyStl::Reverse_Iterator<const_iterator> const_reverse_iterator;
 
-        typedef _RB_tree_node_base* base_ptr;
-
         static_assert(std::__is_invocable<Compare, const key_type&, const key_type&>{}, 
                         "Compare predicate must be invocable.");
 
-        allocator_type _get_al() {return allocator_type();}
+    private:
+        typedef _RB_tree_node_base _Base_type;
+        typedef _Base_type* _Base_ptr;
+        typedef _RB_tree_node<TVal> _Node_type;
+        typedef _Node_type* _Node_ptr;
+        typedef _RB_tree<TKey, TVal, Compare> _Self;
+
+        inline allocator_type _get_al() {return allocator_type();}
 
     private:
-        base_ptr _header;
+        _Base_ptr _header;
         size_type _size;
         Compare _key_compare;
 
-        base_ptr& root() {return _header->_parent;}
-        base_ptr& max_node() {return _header->_right;}
-        base_ptr& min_node() {return _header->_left;}
+        _Base_ptr& root() {return _header->_parent;}
+        _Base_ptr& max_node() {return _header->_right;}
+        _Base_ptr& min_node() {return _header->_left;}
 
         void default_init() {
             _header->_parent = nullptr;
-            _header->_left = _header->_right = _header;  // must not set to nullptr in case begin() or end() called on empty tree
+
+            // must not set to nullptr in case begin() or end() called on empty tree
+            _header->_left = _header->_right = _header;  
+
             _header->_color = _RB_tree_color::_red;
             _size = 0;
             _key_compare = Compare();
@@ -216,6 +233,143 @@ namespace MyStl
         /* constructors */
         _RB_tree() {default_init();}
 
-        
+        _RB_tree(const _RB_tree& rhs) {
+            default_init();
+
+            copy_tree(rhs);
+        }
+
+        _RB_tree(_RB_tree&& rhs)
+            : _header(std::move(rhs._header)),
+              _size(rhs._size),
+              _key_compare(rhs._key_compare) {}
+
+        _Self& operator=(const _RB_tree& rhs) {
+            reset();
+            copy_tree(rhs);
+            return *this;
+        }
+
+        _Self& operator=(_RB_tree&& rhs) {
+            reset();
+
+            _header = std::move(rhs._header);
+            _size = rhs._size;
+            _key_compare = rhs._key_compare;
+
+            return *this;
+        }
+
+    private:
+        void rotate_left(_Base_ptr pivot) {
+            auto rchild = pivot->_right;
+            pivot->_right = rchild->_left;
+
+            if (rchild->_left) {
+                rchild->_left->_parent = pivot;
+            }
+
+            rchild->_left = pivot;
+            rchild->_parent = pivot->_parent;
+            
+
+            if (root() == pivot)
+                root() = rchild;
+            else if (pivot->_is_lchild())
+                pivot->_parent->_left = rchild;
+            else
+                pivot->_parent->_right = rchild;
+
+            pivot->_parent = rchild;
+        }
+
+        void rotate_right(_Base_ptr pivot) {
+            auto lchild = pivot->_left;
+            pivot->_left = lchild->_right;
+
+            if (lchild->_right) {
+                lchild->_right->_parent = pivot;
+            }
+
+            lchild->_right = pivot;
+            lchild->_parent = pivot->_parent;
+            
+
+            if (root() == pivot)
+                root() = lchild;
+            else if (pivot->_is_lchild())
+                pivot->_parent->_left = lchild;
+            else
+                pivot->_parent->_right = lchild;
+
+            pivot->_parent = lchild;
+        }
+
+        template<class...Args>
+        _Node_ptr construct_node(Args&& ...args) {
+            _Node_ptr ptr = _get_al().allocate(1);
+            try{
+                _get_al().construct(ptr->_val_ptr(), std::forward<Args>(args)...);
+                ptr->_parent = ptr->_left = ptr->_right = 0;
+            } catch (...) {
+                _get_al().deallocate(ptr);
+                throw;
+            }
+
+            return ptr;
+        }
+
+        void destroy_node(_Node_ptr n) {
+            _get_al().destroy(n->_val_ptr());
+            _get_al().deallocate(n);
+        }
+
+        // recursively create a copy of the subtree with rhs as root and 
+        // return the root of the copied tree, where p is the copied root's parent
+        // must ensure rhs != nullptr when calling
+        _Base_ptr copy_from(_Base_ptr rhs, _Base_ptr p) {
+            _Base_ptr root = construct_node(rhs->_get_node<TVal>()->_val);
+            
+            try{
+                root->_parent = p;
+
+                if (rhs->_left) {
+                    root->_left = copy_from(rhs->_left, root);
+                }
+
+                if (rhs->_right) {
+                    root->_right = copy_from(rhs->_right, root);
+                }
+
+                return root;
+            } catch (...) {
+                erase_from(root);
+                throw;
+            }
+            
+        }
+
+        // recursively destroy the subtree rooted at n
+        void erase_from(_Base_ptr n) {
+            if (n->_left) erase_from(n->_left->_get_node());
+            if (n->_right) erase_from(n->_right->_get_node());
+
+            destroy_node(n);
+        }
+
+        void reset() {
+            erase_from(root());
+
+            default_init();
+        }
+
+        void copy_tree(const _RB_tree& rhs) {
+            root() = copy_from(rhs.root(), _header);
+            max_node() = _Base_type::_max(root());
+            min_node() = _Base_type::_min(root());
+
+            _size = rhs._size;
+            _key_compare = rhs._key_compare;
+        }
     };
 } // namespace MyStl
