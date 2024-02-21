@@ -1,4 +1,5 @@
-/* This header file implements RB tree, an internal data structure for MtStl. */
+/* This header file implements RB tree class template, 
+    an internal data structure for MtStl */
 #include "Iterator.h"
 #include <set>
 namespace MyStl
@@ -154,8 +155,9 @@ namespace MyStl
                 }
 
                 if (_node_base->_right != p) {
-                    // if we are incrementing on the maximum node of the tree, the result of _node_base will be the header
-                    // which will result in UB if dereferenced.
+                    // if we are incrementing on the maximum node of the tree,
+                    // the result of _node_base will be the header, which
+                    // will result in UB if dereferenced.
                     _node_base = p;
                 }
             }
@@ -324,9 +326,9 @@ namespace MyStl
             _get_al().deallocate(n);
         }
 
-        // recursively create a copy of the subtree with rhs as root and 
-        // return the root of the copied tree, where p is the copied root's parent
-        // must ensure rhs != nullptr when calling
+        // Recursively create a copy of the subtree with rhs as root and 
+        // return the root of the copied tree, where p is the copied root's 
+        // parent. Caller must ensure rhs != nullptr when calling.
         _Base_ptr copy_from(_Base_ptr rhs, _Base_ptr p) {
             _Base_ptr root = construct_node(rhs->_get_node<TVal>()->_val);
             
