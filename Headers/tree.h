@@ -9,6 +9,8 @@ namespace MyStl
         _black = 1
     };
 
+    template <typename T> class _RB_tree_node;
+
     class _RB_tree_node_base {
     public:
         typedef _RB_tree_node_base* _Base_ptr;
@@ -91,7 +93,8 @@ namespace MyStl
     public:
         using _Base_ptr = typename _RB_tree_node_base::_Base_ptr;
         using _Node_Ptr = _RB_tree_node<T>*;
-        using _Self = _RB_tree_iterator<T>;
+        using _Node_base = _RB_tree_node_base;
+        using _Self = _RB_tree_iterator<T, pointer, reference>;
 
         _Base_ptr _node_base;
 
@@ -146,7 +149,7 @@ namespace MyStl
     private:
         void increment() noexcept {
             if (_node_base->_right) {
-                _node_base = _node_base->_right->_min();
+                _node_base = _Node_base::_min(_node_base->_right);
             } else {
                 auto p = _node_base->_parent;
                 while (p->_right == _node_base) {
@@ -165,7 +168,7 @@ namespace MyStl
 
         void decrement() noexcept {
             if (_node_base->_left) {
-                _node_base = _node_base->_left->_max();
+                _node_base = _Node_base::_max(_node_base->_left);
             } else {
                 auto p = _node_base->_parent;
                 while (p->_left == _node_base) {
@@ -353,8 +356,8 @@ namespace MyStl
 
         // recursively destroy the subtree rooted at n
         void erase_from(_Base_ptr n) {
-            if (n->_left) erase_from(n->_left->_get_node());
-            if (n->_right) erase_from(n->_right->_get_node());
+            if (n->_left) erase_from(n->_left->_get_node<TVal>());
+            if (n->_right) erase_from(n->_right->_get_node<TVal>());
 
             destroy_node(n);
         }
