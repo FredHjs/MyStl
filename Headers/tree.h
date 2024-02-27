@@ -266,6 +266,60 @@ namespace MyStl
         }
 
     private:
+        // n should be passed in as the newly inserted node
+        void insert_fix(_Base_ptr n) noexcept {
+            n->_set_red();
+
+            while (root() != n && n->_parent->_is_red()) {
+                // n->_parent->_is_red() ==> n->_parent != root()
+                _Base_ptr grandparent = n->_parent->_parent;
+                _Base_ptr uncle;
+                if (n->_parent->_is_lchild())
+                    uncle = grandparent->_right;
+                else
+                    uncle = grandparent->_left;
+                
+                if (uncle && uncle->_is_red()) {
+                    // grandparent must have been black
+                    // try re-coloring
+                    uncle->_set_black();
+                    n->_parent->_set_black();
+                    grandparent->_set_red();
+                    n = grandparent;
+                } else {
+                    // re-coloring can't keep balance, must rotate, 4 cases:
+                    if (n->_parent->_is_lchild()) {
+                        if (!(n->_is_lchild())) {
+                            // LR
+                            n = n->_parent;
+                            rotate_left(n);
+                        }
+
+                        // LL
+                        n->_parent->_set_black();
+                        grandparent->_set_red();
+                        rotate_right(grandparent);
+                    } else {
+                        if (n->_is_lchild()) {
+                            // RL
+                            n = n->_parent;
+                            rotate_right(n);
+                        }
+
+                        // RR
+                        n->_parent->_set_black();
+                        grandparent->_set_red();
+                        rotate_left(grandparent);
+                    }
+
+                    // while loop will terminate after this iteration since n->_parent is set to black on all paths 
+                    break;
+                }
+            }
+
+            root()->_set_black();
+        }
+
         void rotate_left(_Base_ptr pivot) {
             auto rchild = pivot->_right;
             pivot->_right = rchild->_left;
