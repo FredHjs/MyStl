@@ -45,6 +45,16 @@ namespace MyStl
             return ptr;
         }
 
+        static _Base_ptr _get_successor(_Base_ptr ptr) {
+            if (ptr->_right) return _RB_tree_node_base::_min(ptr->_right);
+
+            while (!(ptr->_is_lchild())) {
+                ptr = ptr->_parent;
+            }
+
+            return ptr->_parent;
+        }
+
         bool _is_red() {
             return _color == _RB_tree_color::_red;
         }
@@ -318,6 +328,138 @@ namespace MyStl
             }
 
             root()->_set_black();
+        }
+
+        // n should be passed in as the ptr to the node to be deleted.
+        // This function will modify the node pointed to by n and make
+        // sure that n is good to be deleted for the next step
+        void delete_fix(_Base_ptr n) noexcept {
+            auto to_delete = (n->_left == nullptr || n->_right == nullptr) ? n : _Base_type::_get_successor(n);
+            // now to_delete has at most 1 child, let replacement be the child or nullptr
+            auto replacement = to_delete->_left ? to_delete->_left : to_delete->_right;
+            _Base_ptr replacement_parent;
+
+            if (to_delete == n) {
+                // n has at most 1 child
+                replacement_parent = to_delete->_parent;
+
+                if (replacement) {
+                    replacement->_parent = to_delete->_parent;
+                }
+                
+                if (to_delete == root()) {
+                    root() = replacement;
+                } else if (to_delete->_is_lchild()) {
+                    to_delete->_parent->_left = replacement;
+                } else {
+                    to_delete->_parent->_right = replacement;
+                }
+
+                if (min_node() == to_delete) {
+                    min_node() = replacement;
+                }
+                if (max_node() == to_delete) {
+                    max_node() == replacement;
+                }
+            } else {
+                // n has 2 children, replacement is the right child of to_delete (or nullptr)
+                // to_delete doesn't have a left child
+                // we use to_delete to replace n
+                to_delete->_left = n->_left;
+                n->_left->_parent = to_delete;
+
+                if (to_delete != n->_right) {
+                    replacement_parent = to_delete->_parent;
+
+                    if (replacement) replacement->_parent = to_delete->_parent;
+
+                    to_delete->_parent->_right = replacement;
+                    to_delete->_right = n->_right;
+                    n->_right->_parent = to_delete;
+                } else {
+                    replacement_parent = to_delete;
+                }
+
+                if (n == root()) {
+                    root() = to_delete;
+                } else if (n->_is_lchild()) {
+                    n->_parent->_left = to_delete;
+                } else {
+                    n->_parent->_right = to_delete;
+                }
+
+                to_delete->_parent = n->_parent;
+                // the colors should not be replaced
+                std::swap(to_delete->_color, n->_color);
+                to_delete = n;
+            }
+
+            // now deleting n will not cause any connection/pointer issues,
+            // we now rebalance the tree (only nececcary if to_delete is black)
+            if (!(to_delete->_is_red())) {
+                while (replacement != root() && (!replacement || !(replacement->_is_red()))) {
+                    _Base_ptr sibling;
+                    if(replacement == replacement_parent->_left)
+                        sibling = replacement_parent->_right;
+                    else
+                        sibling = replacement_parent->_left;
+                    
+                    if (sibling->_is_red) {
+                        // implies that both replacement_parent and sibling's children are black
+                        sibling->_set_black();
+                        replacement_parent->_set_red();
+                        if (replacement == replacement_parent->_left) {
+                            rotate_left(replacement_parent);
+                            sibling = replacement_parent->_right;
+                        } else {
+                            rotate_right(replacement_parent);
+                            sibling = replacement_parent->_left;
+                        }  
+                    }
+                    // now both replacement and sibling are black (or nullptr)
+                    if ((sibling->_left == nullptr || !(sibling->_left->_is_red())) &&
+                        (sibling->_right == nullptr || !(sibling->_right->_is_red()))) {
+                        // both of sibling's children are black
+                        sibling->_set_red();
+                        replacement = replacement_parent;
+                        replacement_parent = replacement_parent->_parent;
+                    } else {
+                        // at least one of sibling's children is red
+                        if (replacement == replacement_parent->_left) {
+                            if (sibling->_right == nullptr || !(sibling->_right->_is_red())) {
+                                sibling->_left->_set_black();     // sibling->_left must not be nullptr and must be red
+                                sibling->_set_red();
+                                rotate_right(sibling);
+                                sibling = replacement_parent->_right;
+                            }
+
+                            sibling->_color = replacement_parent->_color;
+                            replacement_parent->_set_black();
+                            if(sibling->_right)
+                                sibling->_right->_set_black();
+                            rotate_left(replacement_parent);
+                            break;
+                        } else {
+                            if (sibling->_left == nullptr || !(sibling->_left->_is_red())) {
+                                sibling->_right->_set_black();     // sibling->_right must not be nullptr and must be red
+                                sibling->_set_red();
+                                rotate_left(sibling);
+                                sibling = replacement_parent->_left;
+                            }
+
+                            sibling->_color = replacement_parent->_color;
+                            replacement_parent->_set_black();
+                            if(sibling->_left)
+                                sibling->_left->_set_black();
+                            rotate_right(replacement_parent);
+                            break;
+                        }
+                    }
+                }
+
+                if (replacement)
+                    replacement->_set_black();
+            }
         }
 
         void rotate_left(_Base_ptr pivot) {
