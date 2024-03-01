@@ -193,7 +193,7 @@ namespace MyStl
         }
     }; 
 
-    template<typename TKey, typename TVal, typename Compare>
+    template<typename TKey, typename TVal, typename KeyofValue, typename Compare>
     class _RB_tree {
     public:
         typedef TKey                 key_type;
@@ -214,6 +214,8 @@ namespace MyStl
 
         static_assert(std::__is_invocable<Compare, const key_type&, const key_type&>{}, 
                         "Compare predicate must be invocable.");
+        static_assert(std::__is_invocable<KeyofValue, const key_type&, const key_type&>{}, 
+                        "Key getter must be invocable.");
 
     private:
         typedef _RB_tree_node_base _Base_type;
