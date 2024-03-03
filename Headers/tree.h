@@ -1,7 +1,8 @@
 /* This header file implements RB tree class template, 
     an internal data structure for MtStl */
 #include "Iterator.h"
-#include <set>
+#include <assert.h>
+#include <memory>
 namespace MyStl
 {
     enum _RB_tree_color {
@@ -74,9 +75,6 @@ namespace MyStl
         bool _is_lchild() {
             return _parent->_left == this;
         }
-
-        template<typename T>
-        inline _RB_tree_node<T>* _get_node() {return reinterpret_cast<_RB_tree_node<T>*>(this);}
     };
 
     template <class T>
@@ -87,11 +85,11 @@ namespace MyStl
         T _val;
 
         T* _val_ptr() {
-            return std::__addressof(_val);
+            return std::addressof(_val);
         }
 
         const T* _val_ptr() const {
-            return std::__addressof(_val);
+            return std::addressof(_val);
         } 
 
         _Base_ptr inline _get_base() {return this;}
@@ -99,7 +97,8 @@ namespace MyStl
     };
 
     template <class T, class pointer, class reference>
-    class _RB_tree_iterator : public MyStl::Iterator<MyStl::Bidirectional_Iterator_Tag, T, ptrdiff_t, pointer, reference> {
+    class _RB_tree_iterator
+        : public MyStl::Iterator<MyStl::Bidirectional_Iterator_Tag, T, ptrdiff_t, pointer, reference> {
     public:
         using _Base_ptr = typename _RB_tree_node_base::_Base_ptr;
         using _Node_Ptr = _RB_tree_node<T>*;
@@ -220,9 +219,11 @@ namespace MyStl
     private:
         typedef _RB_tree_node_base _Base_type;
         typedef _Base_type* _Base_ptr;
+        typedef const _Base_type _Const_Base_ptr;
         typedef _RB_tree_node<TVal> _Node_type;
         typedef _Node_type* _Node_ptr;
-        typedef _RB_tree<TKey, TVal, Compare> _Self;
+        typedef const _Node_type* _Const_Node_ptr;
+        typedef _RB_tree<TKey, TVal, KeyofValue, Compare> _Self;
 
         inline allocator_type _get_al() {return allocator_type();}
 
@@ -277,7 +278,141 @@ namespace MyStl
             return *this;
         }
 
+        /* capacity */
+        size_type size() {
+            return _size;
+        }
+
+        bool empty() {
+            return _size == 0;
+        }
+
+        size_type capacity() {
+            return -1;
+        }
+
+        /* iterators */
+        iterator begin() noexcept {
+            return min_node();
+        }
+
+        const_iterator begin() const noexcept {
+            return min_node();
+        }
+
+        iterator end() noexcept {
+            return _header;
+        }
+
+        const_iterator end() const noexcept {
+            return _header;
+        }
+
+        const_iterator cbegin() const noexcept {
+            return min_node();
+        }
+
+        const_iterator cend() const noexcept {
+            return _header;
+        }
+
+        reverse_iterator rbegin() noexcept {
+            return reverse_iterator(end());
+        }
+
+        const_reverse_iterator rbegin() const noexcept {
+            return reverse_iterator(end());
+        }
+
+        reverse_iterator rend() noexcept {
+            return reverse_iterator(begin());
+        }
+
+        const_reverse_iterator rend()  const noexcept {
+            return reverse_iterator(begin());
+        }
+
+        const_reverse_iterator crbegin() const noexcept {
+            return rbegin();
+        }
+
+        const_reverse_iterator crend() const noexcept {
+            return rend();
+        }
+
+        /* modifiers */
+        std::pair<iterator, bool>
+        insert_unique(const_reference val) {
+            assert(size() < capacity() && "RB tree has reached capacity");
+
+            auto res = get_insert_unique_pos(KeyofValue()(val));
+            
+            if (res.second) {
+                return std::make_pair(insert_at_pos(res.second, val), true);
+            }
+
+            return std::make_pair(res.first, false);
+        }
+
     private:
+        // p is the parent of insertion position
+        iterator insert_at_pos(_Base_ptr p, const_reference val) {
+            auto n = construct_node(val);
+            n->_parent = p;
+
+            if (p == _header) {
+                root() = n;
+                min_node() = n;
+                max_node() = n;
+            }
+
+            bool insert_left = _key_compare(KeyofValue()(val), KeyofValue()(*(get_node(p)->_val_ptr())));
+
+            if (insert_left) {
+                p->_left = n;
+                if (p == min_node())
+                    min_node() = n;
+            } else {
+                p->_right = n;
+                if (p == max_node())
+                    max_node() = n;
+            }
+
+            ++_size;
+            insert_fix(n);
+            return iterator(n);
+        }
+
+        // first base ptr contains supposed insertion position if there's duplicate (nullptr if unique)
+        // second base ptr is the parent of insertion position (nullptr if duplication found)
+        std::pair<_Base_ptr, _Base_ptr>
+        get_insert_unique_pos(const key_type& key) {
+            using Res = std::pair<_Base_ptr, _Base_ptr>;
+            auto cur = root();
+            auto p = _header;
+            bool comp = true;
+
+            while (cur) {
+                p = cur;
+                comp = _key_compare(key, KeyofValue()(get_node(cur)->_val));
+                cur = comp ? cur->_left : cur->_right;
+            }
+
+            iterator i = iterator(p);
+
+            if (comp) {
+                if (p == _header || p == min_node())
+                    return Res(cur, p);
+                else
+                    --i;
+            }
+
+            if (_key_compare(KeyofValue()(*i), key))
+                return Res(cur, p);
+            
+            return Res(i._node_base, nullptr);
+        }
+
         // n should be passed in as the newly inserted node
         void insert_fix(_Base_ptr n) noexcept {
             n->_set_red();
@@ -531,7 +666,7 @@ namespace MyStl
         // return the root of the copied tree, where p is the copied root's 
         // parent. Caller must ensure rhs != nullptr when calling.
         _Base_ptr copy_from(_Base_ptr rhs, _Base_ptr p) {
-            _Base_ptr root = construct_node(rhs->_get_node<TVal>()->_val);
+            _Base_ptr root = construct_node(get_node(rhs)->_val);
             
             try{
                 root->_parent = p;
@@ -554,8 +689,8 @@ namespace MyStl
 
         // recursively destroy the subtree rooted at n
         void erase_from(_Base_ptr n) {
-            if (n->_left) erase_from(n->_left->_get_node<TVal>());
-            if (n->_right) erase_from(n->_right->_get_node<TVal>());
+            if (n->_left) erase_from(n->_left);
+            if (n->_right) erase_from(n->_right);
 
             destroy_node(n);
         }
@@ -573,6 +708,14 @@ namespace MyStl
 
             _size = rhs._size;
             _key_compare = rhs._key_compare;
+        }
+
+        static _Node_ptr get_node(_Base_ptr n) {
+            return static_cast<_Node_ptr>(n);
+        }
+
+        static _Const_Node_ptr get_node(_Const_Base_ptr n) {
+            return static_cast<_Const_Node_ptr>(n);
         }
     };
 } // namespace MyStl
