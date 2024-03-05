@@ -348,16 +348,85 @@ namespace MyStl
             auto res = get_insert_unique_pos(KeyofValue()(val));
             
             if (res.second) {
-                return std::make_pair(insert_at_pos(res.second, val), true);
+                auto n = construct_node(val);
+                return std::make_pair(insert_at_pos(res.second, n, res.first != nullptr), true);
             }
 
             return std::make_pair(res.first, false);
         }
 
+        template <class P, 
+                  typename std::enable_if<std::is_constructible<value_type, P&&>::value, int>::type = 0>
+        std::pair<iterator, bool>
+        insert_unique(P&& other) {
+            return emplace_unique(std::forward<P>(other));
+        }
+
+        iterator insert_unique(const_iterator hint, const_reference val) {
+            return emplace_hint(hint, val);
+        }
+
+        template <class P,
+                  typename std::enable_if<std::is_constructible<value_type, P&&>::value, int>::type = 0>
+        iterator insert_unique(const_iterator hint, P&& other) {
+            return emplace_hint(hint, std::forward<P>(other));
+        }
+
+        template <class InputIt>
+        void insert_unique(InputIt first, InputIt last) {
+            size_type num = MyStl::distance(first, last);
+            assert(size() + num <= capacity() && "number of nodes will exceed RB tree capacity");
+
+            while (num) {
+                insert_unique(*first);
+                ++first;
+                --num;
+            }
+        }
+
+        void insert_unique(std::initializer_list<value_type> ilist) {
+            insert_unique(ilist.begin(), ilist.end());
+        }
+
+        template <class...Args>
+        std::pair<iterator, bool>
+        emplace_unique(Args&& ...args) {
+            assert(size() < capacity() && "RB tree has reached capacity");
+            auto n = construct_node(std::forward<Args>(args)...);
+
+            auto res = get_insert_unique_pos(get_key(n));
+
+            if (res.second) {
+                return std::make_pair(insert_at_pos(res.second, n, res.first != nullptr), true);
+            }
+
+            destroy_node(n);
+            return std::make_pair(res.first, false);
+        }
+
+        template <class...Args>
+        iterator emplace_hint(iterator hint, Args&& ...args) {
+            assert(size() < capacity() && "RB tree has reached capacity");
+
+            auto n = construct_node(std::forward<Args>(args)...);
+
+            try {
+                auto res = get_emplace_hint_unique_pos(hint, get_key(n));
+                if (res.second) {
+                    return insert_at_pos(res.second, n, res.first != nullptr);
+                }
+                destroy_node(n);
+                return iterator(res.first);
+            } catch (...) {
+                destroy_node(n);
+                throw;
+            }
+        }
+
     private:
         // p is the parent of insertion position
-        iterator insert_at_pos(_Base_ptr p, const_reference val) {
-            auto n = construct_node(val);
+        // left_indicator ==> insert left, but !left_indicator =\=> insert right
+        iterator insert_at_pos(_Base_ptr p, _Base_ptr n, bool left_indicator) {
             n->_parent = p;
 
             if (p == _header) {
@@ -366,7 +435,7 @@ namespace MyStl
                 max_node() = n;
             }
 
-            bool insert_left = _key_compare(KeyofValue()(val), KeyofValue()(*(get_node(p)->_val_ptr())));
+            bool insert_left = left_indicator || _key_compare(get_key(n), get_key(p));
 
             if (insert_left) {
                 p->_left = n;
@@ -383,7 +452,8 @@ namespace MyStl
             return iterator(n);
         }
 
-        // first base ptr contains supposed insertion position if there's duplicate (nullptr if unique)
+        // first base ptr contains supposed insertion position if there's duplicate
+        // first != nullptr ==> should insert to left, but should insert to left =\=> first != nullptr
         // second base ptr is the parent of insertion position (nullptr if duplication found)
         std::pair<_Base_ptr, _Base_ptr>
         get_insert_unique_pos(const key_type& key) {
@@ -394,7 +464,7 @@ namespace MyStl
 
             while (cur) {
                 p = cur;
-                comp = _key_compare(key, KeyofValue()(get_node(cur)->_val));
+                comp = _key_compare(key, get_key(cur));
                 cur = comp ? cur->_left : cur->_right;
             }
 
@@ -411,6 +481,51 @@ namespace MyStl
                 return Res(cur, p);
             
             return Res(i._node_base, nullptr);
+        }
+
+        std::pair<_Base_ptr, _Base_ptr>
+        get_emplace_hint_unique_pos(iterator hint, const key_type& key) {
+            using Res = std::pair<_Base_ptr, _Base_ptr>;
+
+            if (hint._node_base == _header) {
+                // hint == end()
+                if (size() && _key_compare(get_key(max_node()), key))
+                    return Res(nullptr, max_node());
+
+                return get_insert_unique_pos(key);
+            } else if (_key_compare(key, get_key(hint._node_base))) {
+                // key < hint
+                iterator before = hint;
+                if (hint._node_base == min_node())
+                    return Res(min_node(), min_node());     // should insert to left child of min_node()
+                else if (_key_compare(get_key((--before)._node_base), key)) {
+                    // before < key < hint
+                    if (!before._node_base->_right)
+                        return Res(nullptr, before._node_base);
+                    // if before._node_base->_right != nullptr, it means hint._left == nullptr
+                    else
+                        return Res(hint._node_base, hint._node_base);   
+                } else {
+                    return get_insert_unique_pos(key);
+                }
+            } else if (_key_compare(get_key(hint._node_base), key)) {
+                // hint < key
+                iterator after = hint;
+                if (hint._node_base == max_node())
+                    return Res(nullptr, max_node());
+                else if (_key_compare(key, get_key(key, (++after)._node_base))) {
+                    // hint < key < after
+                    if (!after._node_base->_left)
+                        return Res(after._node_base, after._node_base);
+                    else
+                        return Res(nullptr, hint._node_base);
+                } else {
+                    return get_insert_unique_pos(key);
+                }
+            } else {
+                // key == hint
+                return (hint._node_base, nullptr);
+            }
         }
 
         // n should be passed in as the newly inserted node
@@ -716,6 +831,14 @@ namespace MyStl
 
         static _Const_Node_ptr get_node(_Const_Base_ptr n) {
             return static_cast<_Const_Node_ptr>(n);
+        }
+
+        static const key_type& get_key(_Const_Base_ptr n) {
+            return KeyofValue()(*(get_node(n)->_val_ptr()));
+        }
+
+        static const key_type& get_key(_Const_Node_ptr n) {
+            return KeyofValue()(*(n->_val_ptr()));
         }
     };
 } // namespace MyStl
