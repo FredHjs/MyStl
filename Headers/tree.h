@@ -236,17 +236,6 @@ namespace MyStl
         _Base_ptr& max_node() {return _header->_right;}
         _Base_ptr& min_node() {return _header->_left;}
 
-        void default_init() {
-            _header->_parent = nullptr;
-
-            // must not set to nullptr in case begin() or end() called on empty tree
-            _header->_left = _header->_right = _header;  
-
-            _header->_color = _RB_tree_color::_red;
-            _size = 0;
-            _key_compare = Compare();
-        }
-
     public:
         /* constructors */
         _RB_tree() {default_init();}
@@ -341,6 +330,10 @@ namespace MyStl
         }
 
         /* modifiers */
+        void clear() noexcept {
+            reset();
+        }
+
         std::pair<iterator, bool>
         insert_unique(const_reference val) {
             assert(size() < capacity() && "RB tree has reached capacity");
@@ -400,7 +393,7 @@ namespace MyStl
                 return std::make_pair(insert_at_pos(res.second, n, res.first != nullptr), true);
             }
 
-            destroy_node(n);
+            delete_node(n);
             return std::make_pair(res.first, false);
         }
 
@@ -415,13 +408,164 @@ namespace MyStl
                 if (res.second) {
                     return insert_at_pos(res.second, n, res.first != nullptr);
                 }
-                destroy_node(n);
+                delete_node(n);
                 return iterator(res.first);
             } catch (...) {
-                destroy_node(n);
+                delete_node(n);
                 throw;
             }
         }
+
+        iterator erase(iterator pos) {
+            assert(pos._node_base != _header);
+
+            auto n = get_node(pos._node_base);
+            auto ret = pos;
+            ++ret;
+
+            delete_fix(n);
+            delete_node(n);
+            return ret;
+        }
+
+        iterator erase(const_iterator pos) {
+            return erase(iterator(const_cast<_Base_ptr>(pos._node_base)));
+        }
+
+        iterator erase(const_iterator first, const_iterator last) {
+            if (first == begin() && last == end()) {
+                reset();
+            } else {
+                while (first != last) {
+                    erase(first++);
+                }
+            }
+
+            return iterator(const_cast<_Base_ptr>(last._node_base));
+        }
+
+        size_type erase(const key_type& key) {
+            auto i = find(key);
+            if (i == end()) return 0;
+            erase(i);
+            return 1;
+        }
+
+        void swap(_RB_tree& other) {
+            if (this != other) {
+                std::swap(_header, other._header);
+                std::swap(_size, other._size);
+                std::swap(_key_compare, other._key_compare);
+            }
+        }
+
+        /* Look up */
+        size_type count_unique (const key_type& key) const {
+            return find(key) == end() ? 0 : 1;
+        }
+
+        std::pair<iterator, iterator>
+        equal_range_unique(const key_type& key) {
+            auto i = find(key);
+            auto j = i;
+            return i == end() ? std::make_pair(end(), end()) : std::make_pair(i, ++j);
+        }
+
+        std::pair<const_iterator, const_iterator>
+        equal_range_unique(const key_type& key) const {
+            auto i = find(key);
+            auto j = i;
+            return i == end() ? std::make_pair(end(), end()) : std::make_pair(i, ++j);
+        }
+
+        iterator find(const key_type& key) {
+            auto i = lower_bound(key);
+            return (i == end() || _key_compare(key, get_key(i._base_node))) ? end() : i;
+        }
+
+        const_iterator find(const key_type& key) const {
+            auto i = lower_bound(key);
+            return (i == end() || _key_compare(key, get_key(i._base_node))) ? end() : i;
+        }
+
+        iterator lower_bound(const key_type& key) {
+            _Base_ptr lb = _header;
+            _Base_ptr cur = root();
+
+            while (lb) {
+                if (_key_compare(get_key(cur), key)) {
+                    // cur.key < key
+                    cur = cur->_right;
+                } else {
+                    // cur.key >= key
+                    lb = cur;
+                    cur = cur->_left;
+                }
+            }
+
+            return iterator(lb);
+        }
+
+        const_iterator lower_bound(const key_type& key) const {
+            _Base_ptr lb = _header;
+            _Base_ptr cur = root();
+
+            while (lb) {
+                if (_key_compare(get_key(cur), key)) {
+                    // cur.key < key
+                    cur = cur->_right;
+                } else {
+                    // cur.key >= key
+                    lb = cur;
+                    cur = cur->_left;
+                }
+            }
+
+            return const_iterator(lb);
+        }
+
+        iterator upper_bound(const key_type& key) {
+            _Base_ptr ub = _header;
+            _Base_ptr cur = root();
+
+            while (ub) {
+                if (_key_compare(key, get_key(cur))) {
+                    // cur.key > key
+                    ub = cur;
+                    cur = cur->_left;
+                } else {
+                    // cur.key <= key
+                    cur = cur->_right;
+                }
+            }
+
+            return iterator(ub);
+        }
+
+        const_iterator upper_bound(const key_type& key) const {
+            _Base_ptr ub = _header;
+            _Base_ptr cur = root();
+
+            while (ub) {
+                if (_key_compare(key, get_key(cur))) {
+                    // cur.key > key
+                    ub = cur;
+                    cur = cur->_left;
+                } else {
+                    // cur.key <= key
+                    cur = cur->_right;
+                }
+            }
+
+            return const_iterator(ub);
+        }
+
+        /* Observers */
+        Compare key_comp() const {
+            return _key_compare;
+        }
+
+
 
     private:
         // p is the parent of insertion position
@@ -772,7 +916,7 @@ namespace MyStl
             return ptr;
         }
 
-        void destroy_node(_Node_ptr n) {
+        void delete_node(_Node_ptr n) {
             _get_al().destroy(n->_val_ptr());
             _get_al().deallocate(n);
         }
@@ -807,7 +951,7 @@ namespace MyStl
             if (n->_left) erase_from(n->_left);
             if (n->_right) erase_from(n->_right);
 
-            destroy_node(n);
+            delete_node(n);
         }
 
         void reset() {
@@ -824,6 +968,17 @@ namespace MyStl
             _size = rhs._size;
             _key_compare = rhs._key_compare;
         }
+
+        void default_init() {
+            _header->_parent = nullptr;
+
+            // must not set to nullptr in case begin() or end() called on empty tree
+            _header->_left = _header->_right = _header;  
+
+            _header->_color = _RB_tree_color::_red;
+            _size = 0;
+            _key_compare = Compare();
+        }        
 
         static _Node_ptr get_node(_Base_ptr n) {
             return static_cast<_Node_ptr>(n);
