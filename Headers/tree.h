@@ -1,5 +1,9 @@
 /* This header file implements RB tree class template, 
     an internal data structure for MtStl */
+
+#ifndef MYSTL_TREE_H
+#define MYSTL_TREE_H
+
 #include "Iterator.h"
 #include <assert.h>
 #include <memory>
@@ -237,8 +241,13 @@ namespace MyStl
         _Base_ptr& min_node() {return _header->_left;}
 
     public:
-        /* constructors */
+        /* constructors and destructors */
         _RB_tree() {default_init();}
+
+        _RB_tree(const Compare& comp) {
+            default_init();
+            _key_compare = comp;
+        }
 
         _RB_tree(const _RB_tree& rhs) {
             default_init();
@@ -250,6 +259,10 @@ namespace MyStl
             : _header(std::move(rhs._header)),
               _size(rhs._size),
               _key_compare(rhs._key_compare) {}
+        
+        ~_RB_tree() {
+            clear();
+        }
 
         _Self& operator=(const _RB_tree& rhs) {
             reset();
@@ -997,3 +1010,5 @@ namespace MyStl
         }
     };
 } // namespace MyStl
+
+#endif
